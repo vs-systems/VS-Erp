@@ -1,0 +1,4 @@
+SKU;DESCRIPCION;MARCA;COSTO;IVA %;CATEGORIA;SUBCATEGORIA;PROVEEDOR
+KIT-ALARM-01;Kit de Alarma Vecino Seguro;Vecino Seguro;150.00;21;Seguridad;Alarmas;PROV-01
+CAM-IP-02;Cámara IP Exterior 1080p;Generic;45.50;21;Seguridad;Cámaras;PROV-02
+SEN-MOV-01;Sensor de Movimiento Infrarrojo;PIR Tech;12.00;10.5;Accesorios;Sensores;PROV-01

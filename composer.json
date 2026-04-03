@@ -1,0 +1,13 @@
+{
+    "name": "vsys/erp",
+    "description": "VS System ERP - Modular Security Management",
+    "type": "project",
+    "require": {
+        "php": ">=8.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Vsys\\": "src/"
+        }
+    }
+}

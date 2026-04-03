@@ -1,0 +1,24 @@
+# VS ERP - Git Ignore
+# Ignorar configuraciones locales con credenciales
+src/config/config.php
+src/config/config_cloud.php
+src/config/config_cloud_final.php
+src/config/config_old_format.php
+src/config/settings.json
+
+# Servidor y despliegue
+debug_deploy.php
+git_sync.php
+deploy_nas.php
+debug_*.php
+*.log
+error_log
+
+# IDEs y Herramientas AI
+.vscode/
+.idea/
+.gemini/
+.google/
+.agent/
+.DS_Store
+Thumbs.db
