@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once 'auth_check.php';
 require_once __DIR__ . '/src/config/config.php';
 require_once __DIR__ . '/src/lib/Database.php';
@@ -45,6 +45,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_entity'])) {
 $sql = "SELECT * FROM entities WHERE type = 'client' ORDER BY name ASC";
 $db = Vsys\Lib\Database::getInstance();
 $clients = $db->query($sql)->fetchAll();
+
+// Pendientes de verificación (Bloque 7)
+$pendingClients = $db->query(
+    "SELECT * FROM entities WHERE type = 'client' AND is_verified = 0 ORDER BY id DESC"
+)->fetchAll();
 ?>
 <!DOCTYPE html>
 <html class="dark" lang="es">
@@ -131,6 +136,88 @@ $clients = $db->query($sql)->fetchAll();
             <div class="flex-1 overflow-y-auto p-6 scroll-smooth">
                 <div class="max-w-[1400px] mx-auto space-y-6">
 
+                    <?php if (!empty($pendingClients)): ?>
+                    <!-- ── PANEL SOLICITUDES PENDIENTES (Bloque 7) ── -->
+                    <div class="bg-amber-500/5 border border-amber-500/20 rounded-2xl overflow-hidden">
+                        <div class="px-6 py-4 border-b border-amber-500/15 flex items-center justify-between gap-4">
+                            <div class="flex items-center gap-2">
+                                <div class="h-2 w-2 rounded-full bg-amber-400 animate-pulse"></div>
+                                <span class="text-xs font-bold uppercase tracking-widest text-amber-400">Solicitudes pendientes de aprobación</span>
+                                <span class="bg-amber-500/15 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded-full"><?php echo count($pendingClients); ?></span>
+                            </div>
+                            <span class="text-[10px] text-slate-500">Registros desde el Portal Web &mdash; pendientes de verificar y activar</span>
+                        </div>
+
+                        <div class="divide-y divide-amber-500/10">
+                            <?php foreach ($pendingClients as $pc):
+                                $pcName  = $pc['fantasy_name'] ?: $pc['name'];
+                                $pcEmail = $pc['email'] ?? '(sin email)';
+                                $pcTel   = $pc['mobile'] ?: $pc['phone'] ?: '(sin teléfono)';
+                                $pcAddr  = $pc['address'] ?: 'Sin localidad';
+                                $pcDate  = !empty($pc['created_at']) ? date('d/m/Y H:i', strtotime($pc['created_at'])) : '—';
+                            ?>
+                            <div class="px-6 py-4 flex flex-wrap items-center gap-4 group" id="pending-row-<?php echo $pc['id']; ?>">
+                                <!-- Avatar -->
+                                <div class="h-10 w-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 flex-shrink-0">
+                                    <span class="material-symbols-outlined text-lg">person</span>
+                                </div>
+
+                                <!-- Info -->
+                                <div class="flex-1 min-w-[180px]">
+                                    <div class="font-bold text-sm dark:text-white text-slate-800"><?php echo htmlspecialchars($pcName); ?></div>
+                                    <div class="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
+                                        <span class="material-symbols-outlined text-[12px]">mail</span> <?php echo htmlspecialchars($pcEmail); ?>
+                                        <span class="text-slate-600">·</span>
+                                        <span class="material-symbols-outlined text-[12px]">phone_iphone</span> <?php echo htmlspecialchars($pcTel); ?>
+                                        <span class="text-slate-600">·</span>
+                                        <span class="material-symbols-outlined text-[12px]">location_on</span> <?php echo htmlspecialchars($pcAddr); ?>
+                                    </div>
+                                </div>
+
+                                <!-- Fecha -->
+                                <div class="text-[11px] text-slate-500 hidden lg:block">
+                                    <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">Solicitó</div>
+                                    <?php echo $pcDate; ?>
+                                </div>
+
+                                <!-- Selector tipo -->
+                                <div class="flex items-center gap-2">
+                                    <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Tipo</label>
+                                    <select id="tipo-select-<?php echo $pc['id']; ?>"
+                                        class="bg-white/5 dark:bg-white/5 border border-slate-200 dark:border-[#233348] rounded-lg text-xs font-bold dark:text-white text-slate-800 px-2 py-1.5 outline-none focus:border-primary">
+                                        <option value="gremio"  <?php echo ($pc['tipo_cliente'] ?? 'gremio') === 'gremio'  ? 'selected' : ''; ?>>Gremio</option>
+                                        <option value="publico" <?php echo ($pc['tipo_cliente'] ?? '') === 'publico' ? 'selected' : ''; ?>>Público</option>
+                                        <option value="partner" <?php echo ($pc['tipo_cliente'] ?? '') === 'partner' ? 'selected' : ''; ?>>Partner</option>
+                                    </select>
+                                </div>
+
+                                <!-- Acciones -->
+                                <div class="flex items-center gap-2">
+                                    <button
+                                        onclick="aprobarCliente(<?php echo $pc['id']; ?>, '<?php echo htmlspecialchars(addslashes($pcName)); ?>', '<?php echo htmlspecialchars($pcEmail); ?>')"
+                                        class="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 rounded-lg text-xs font-bold transition-all">
+                                        <span class="material-symbols-outlined text-sm">verified</span>
+                                        Aprobar
+                                    </button>
+                                    <a href="config_entities.php?id=<?php echo $pc['id']; ?>"
+                                        class="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-slate-200 dark:border-[#233348] text-slate-400 hover:text-white rounded-lg text-xs font-bold transition-all">
+                                        <span class="material-symbols-outlined text-sm">edit</span>
+                                        Ver ficha
+                                    </a>
+                                </div>
+
+                                <!-- Spinner de procesamiento (oculto hasta AJAX) -->
+                                <div id="loading-<?php echo $pc['id']; ?>" class="hidden items-center gap-2 text-xs text-slate-400">
+                                    <div class="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                    Procesando...
+                                </div>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <!-- /panel pendientes -->
+                    <?php endif; ?>
+
                     <?php if ($message): ?>
                         <div
                             class="flex items-center gap-3 p-4 rounded-2xl border <?php echo $status === 'success' ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-red-500/10 border-red-500/20 text-red-500'; ?> animate-in fade-in slide-in-from-top-4 duration-300">
@@ -167,6 +254,7 @@ $clients = $db->query($sql)->fetchAll();
                                         <th class="px-6 py-4">CUIT / DNI</th>
                                         <th class="px-6 py-4">Contacto</th>
                                         <th class="px-6 py-4">Cat. Fiscal</th>
+                                        <th class="px-6 py-4">Tipo</th>
                                         <th class="px-6 py-4">Email / Tel</th>
                                         <th class="px-6 py-4 text-center">Estado</th>
                                         <th class="px-6 py-4 text-center">Acciones</th>
@@ -200,6 +288,20 @@ $clients = $db->query($sql)->fetchAll();
                                                 <span
                                                     class="text-[10px] font-bold py-1 px-2 rounded-lg bg-primary/10 text-primary border border-primary/20">
                                                     <?php echo $c['tax_category']; ?>
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-5">
+                                                <?php
+                                                $tc = $c['tipo_cliente'] ?? 'publico';
+                                                $tcLabel = ['partner' => 'Partner', 'gremio' => 'Gremio', 'publico' => 'Público'][$tc] ?? 'Público';
+                                                $tcClass = [
+                                                    'partner' => 'background:rgba(168,85,247,.12);color:#c084fc;border:1px solid rgba(168,85,247,.25);',
+                                                    'gremio'  => 'background:rgba(245,158,11,.12);color:#fbbf24;border:1px solid rgba(245,158,11,.25);',
+                                                    'publico' => 'background:rgba(100,116,139,.1);color:#94a3b8;border:1px solid rgba(100,116,139,.2);',
+                                                ][$tc] ?? '';
+                                                ?>
+                                                <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:6px;<?php echo $tcClass; ?>">
+                                                    <?php echo $tcLabel; ?>
                                                 </span>
                                             </td>
                                             <td class="px-6 py-5">
@@ -237,5 +339,80 @@ $clients = $db->query($sql)->fetchAll();
         </main>
     </div>
 </body>
+
+<script>
+/**
+ * Aprueba un cliente pendiente via AJAX (Bloque 7)
+ */
+async function aprobarCliente(entityId, nombre, email) {
+    const tipoSelect = document.getElementById('tipo-select-' + entityId);
+    const tipo       = tipoSelect ? tipoSelect.value : 'gremio';
+
+    if (!confirm(`¿Aprobar a ${ nombre } [${ email }] como ${ tipo.toUpperCase() }?\n\nSe creará un usuario y se enviarán las credenciales por email.`)) return;
+
+    // UI: mostrar spinner
+    const row     = document.getElementById('pending-row-' + entityId);
+    const loading = document.getElementById('loading-' + entityId);
+    if (row) row.style.opacity = '.5';
+    if (loading) loading.classList.replace('hidden', 'flex');
+
+    try {
+        const res  = await fetch('ajax_approve_client.php', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ entity_id: entityId, tipo_cliente: tipo }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            // Remover fila del panel
+            if (row) {
+                row.style.transition = 'all .4s';
+                row.style.opacity = '0';
+                row.style.maxHeight = '0';
+                row.style.overflow  = 'hidden';
+                setTimeout(() => row.remove(), 420);
+            }
+            showToast(data.message, 'success');
+
+            // Si no quedan pendientes, ocultar el panel completo
+            setTimeout(() => {
+                const panel = document.querySelector('.bg-amber-500\/5');
+                if (panel && panel.querySelectorAll('[id^="pending-row-"]').length === 0) {
+                    panel.remove();
+                }
+            }, 500);
+        } else {
+            if (row) row.style.opacity = '1';
+            if (loading) loading.classList.replace('flex', 'hidden');
+            showToast(data.message || 'Error desconocido', 'error');
+        }
+    } catch (err) {
+        if (row) row.style.opacity = '1';
+        if (loading) loading.classList.replace('flex', 'hidden');
+        showToast('Error de red: ' + err.message, 'error');
+    }
+}
+
+/**
+ * Toast minimalista (sin dependencias)
+ */
+function showToast(msg, type = 'success') {
+    const colors = {
+        success: 'background:#16202e;border:1px solid rgba(74,222,128,.3);color:#4ade80;',
+        error:   'background:#16202e;border:1px solid rgba(248,113,113,.3);color:#f87171;',
+    };
+    const t = document.createElement('div');
+    t.innerHTML = msg;
+    t.style.cssText = `
+        position:fixed;bottom:28px;right:28px;z-index:9999;
+        padding:14px 20px;border-radius:14px;font-size:13px;font-weight:600;
+        max-width:380px;line-height:1.5;box-shadow:0 20px 40px rgba(0,0,0,.5);
+        transition:all .4s;${ colors[type] || colors.success }
+    `;
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 5000);
+}
+</script>
 
 </html>

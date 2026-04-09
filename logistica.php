@@ -1,42 +1,41 @@
-﻿<?php
+<?php
 require_once 'auth_check.php';
 require_once __DIR__ . '/src/config/config.php';
 require_once __DIR__ . '/src/lib/Database.php';
 require_once __DIR__ . '/src/modules/logistica/Logistics.php';
 use Vsys\Modules\Logistica\Logistics;
 $logistics = new Logistics();
-$view = $_GET['view'] ?? 'armado';
+// Nuevo modelo logístico (B11):
+// PENDIENTES  = pedidos cobrados (payment_status=Pagado) sin fecha de despacho
+// REALIZADOS  = pedidos con dispatched_at IS NOT NULL
+// La vista 'armado' queda suspendida pero accesible por URL directa
+$view      = $_GET['view'] ?? 'pendientes';
 $allOrders = $logistics->getOrdersForPreparation();
-$transports = $logistics->getTransports();
-$pendingCount = count(array_filter($allOrders, function ($q) {
-    return ($q['payment_status'] !== 'Pagado' && $q['logistics_authorized_by'] === null && $q['archived_at'] === null);
-}));
-$pending = $pendingCount; // Legacy support for the variable name in some versions
-
-
-// Logic for categorization:
-// Pendientes: Confirmed but NOT paid/authorized.
-// En Armado: Paid or Authorized.
-// Archivados: Archived.
+$transports= $logistics->getTransports();
 
 $orders = array_filter($allOrders, function ($q) use ($view) {
-    $isArchived = ($q['archived_at'] !== null);
-    $isPaidOrAuth = ($q['payment_status'] === 'Pagado' || $q['logistics_authorized_by'] !== null);
+    $isArchived   = ($q['archived_at']   !== null);
+    $isDispatched = !empty($q['dispatched_at']);
+    $isPaid       = ($q['payment_status'] === 'Pagado');
+    $isAuthorized = !empty($q['logistics_authorized_by']);
 
     if ($view === 'archivados') {
-        return $isArchived;
+        // Envíos realizados: despachados (con guía o comprobante)
+        return $isDispatched && !$isArchived;
     }
 
-    if ($isArchived)
-        return false; // Hide archived from other views
+    if ($isArchived || $isDispatched) return false;
 
     if ($view === 'pendientes') {
-        return !$isPaidOrAuth;
+        // Entregas pendientes: cobrado O autorizado sin cobro, sin despachar
+        return $isPaid || $isAuthorized;
     }
 
-    // Default view: armado
-    return $isPaidOrAuth;
+    // Armado (legacy): authorized/paid
+    return $isPaid || $isAuthorized;
 });
+
+$pendingCount = count($orders);
 
 // Map phases to colors and icons (Material Symbols)
 $phases = [
@@ -144,8 +143,14 @@ $phases = [
                     <div class="bg-[#136dec]/20 p-2 rounded-lg text-[#136dec]">
                         <span class="material-symbols-outlined text-2xl">local_shipping</span>
                     </div>
-                    <h2 class="dark:text-white text-slate-800 font-bold text-lg uppercase tracking-tight">Gestión
-                        Logística</h2>
+                    <div>
+                        <h2 class="dark:text-white text-slate-800 font-bold text-lg tracking-tight">
+                            <?php echo $view === 'archivados' ? 'Envíos Realizados' : 'Entregas Pendientes'; ?>
+                        </h2>
+                        <p class="text-[10px] text-slate-500 font-medium tracking-widest uppercase mt-0.5">
+                            <?php echo $view === 'archivados' ? 'Historial de despachos' : 'Pedidos cobrados · Pendientes de despacho'; ?>
+                        </p>
+                    </div>
                 </div>
             </header>
 
@@ -437,25 +442,60 @@ $phases = [
             } else { alert(data.error); }
         }
 
-        function subirGuia(quoteNumber) {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'application/pdf,image/*';
-            input.onchange = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                const formData = new FormData();
-                formData.append('action', 'upload_guide');
-                formData.append('quote_number', quoteNumber);
-                formData.append('guide_photo', file);
-                const res = await fetch('ajax_logistics.php', { method: 'POST', body: formData });
+        async function subirGuia(quoteNumber) {
+            const { value: formValues } = await Swal.fire({
+                title: 'Registrar despacho',
+                html: `
+                    <p class="text-xs text-slate-400 mb-4">Pedido <strong class="text-primary">${quoteNumber}</strong></p>
+                    <div class="space-y-3 text-left">
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">Número de guía / remito</label>
+                            <input id="dispatchGuide" type="text" placeholder="Ej: OCA-123456 o Remito 0001-00001234"
+                                class="w-full bg-slate-100 dark:bg-white/10 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm font-medium focus:ring-2 focus:ring-primary outline-none">
+                        </div>
+                        <div class="border-t border-slate-200 dark:border-white/10 pt-3">
+                            <label class="block text-[10px] font-black text-slate-500 uppercase mb-1">O subir comprobante (PDF / imagen)</label>
+                            <input id="dispatchFile" type="file" accept=".pdf,image/*"
+                                class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-primary/10 file:text-primary hover:file:bg-primary/20">
+                        </div>
+                    </div>`,
+                showCancelButton: true,
+                confirmButtonColor: '#136dec',
+                confirmButtonText: 'Registrar envío',
+                cancelButtonText: 'Cancelar',
+                background: document.documentElement.classList.contains('dark') ? '#16202e' : '#fff',
+                color: document.documentElement.classList.contains('dark') ? '#fff' : '#000',
+                preConfirm: () => ({
+                    guide: document.getElementById('dispatchGuide').value,
+                    file:  document.getElementById('dispatchFile').files[0]
+                })
+            });
+
+            if (!formValues) return;
+            if (!formValues.guide && !formValues.file) {
+                return Swal.fire('Atención', 'Ingresá un número de guía o subí un comprobante.', 'warning');
+            }
+
+            Swal.fire({ title: 'Registrando despacho...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            const formData = new FormData();
+            formData.append('action', 'dispatch_order');
+            formData.append('quote_number', quoteNumber);
+            formData.append('dispatch_guide', formValues.guide || '');
+            if (formValues.file) formData.append('dispatch_file', formValues.file);
+
+            try {
+                const res  = await fetch('ajax_logistics.php', { method: 'POST', body: formData });
                 const data = await res.json();
                 if (data.success) {
-                    alert("Guía subida y pedido entregado.");
-                    location.reload();
-                } else { alert("Error: " + data.error); }
-            };
-            input.click();
+                    Swal.fire({ icon: 'success', title: 'Despacho registrado', text: 'El pedido pasó a Envíos Realizados.', timer: 1800, showConfirmButton: false });
+                    setTimeout(() => location.reload(), 1800);
+                } else {
+                    Swal.fire('Error', data.error || 'No se pudo registrar el despacho.', 'error');
+                }
+            } catch (e) {
+                Swal.fire('Error', 'Error de conexión', 'error');
+            }
         }
 
         async function verDetallesPedido(quoteNumber) {

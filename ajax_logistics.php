@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * AJAX Handler - Logistics Actions (Hardened)
  */
@@ -48,26 +48,50 @@ try {
             $response = ['success' => (bool) $remito, 'remito_number' => $remito];
             break;
 
-        case 'upload_guide':
-            $quoteNumber = $_POST['quote_number'];
+        case 'upload_guide':    // legacy
+        case 'dispatch_order':
+            $quoteNumber = $_POST['quote_number'] ?? '';
+            $guide       = trim($_POST['dispatch_guide'] ?? '');
+            $dispatchedBy= trim($_POST['dispatched_by'] ?? $_SESSION['full_name'] ?? 'Sistema');
+            $dispatchFile = null;
+
+            // Subir archivo si viene
+            if (!empty($_FILES['dispatch_file']['name'])) {
+                $uploadDir = __DIR__ . '/uploads/guides/';
+                if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
+                $ext      = pathinfo($_FILES['dispatch_file']['name'], PATHINFO_EXTENSION);
+                $fileName = $quoteNumber . '_' . time() . '.' . $ext;
+                $dest     = $uploadDir . $fileName;
+                if (move_uploaded_file($_FILES['dispatch_file']['tmp_name'], $dest)) {
+                    $dispatchFile = 'uploads/guides/' . $fileName;
+                }
+            }
+            // Legacy: guide_photo
             if (!empty($_FILES['guide_photo']['name'])) {
                 $uploadDir = __DIR__ . '/uploads/guides/';
-                if (!is_dir($uploadDir))
-                    mkdir($uploadDir, 0777, true);
+                if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
                 $fileName = $quoteNumber . '_' . time() . '_' . $_FILES['guide_photo']['name'];
                 $dest = $uploadDir . $fileName;
                 if (move_uploaded_file($_FILES['guide_photo']['tmp_name'], $dest)) {
-                    $logistics->attachDocument($quoteNumber, 'quotation', 'Shipping Guide', 'uploads/guides/' . $fileName, 'Guía de transporte subida.');
-                    $logistics->updateOrderPhase($quoteNumber, 'Entregado');
-                    $response = ['success' => true];
-                } else {
-                    $response = ['success' => false, 'error' => 'Error al guardar el archivo.'];
+                    $dispatchFile = 'uploads/guides/' . $fileName;
                 }
-            } else {
-                $response = ['success' => false, 'error' => 'No se recibió ningún archivo.'];
             }
+
+            // Actualizar quotation
+            $db = Vsys\Lib\Database::getInstance();
+            $db->prepare("
+                UPDATE quotations
+                SET dispatched_at   = NOW(),
+                    dispatch_guide  = COALESCE(NULLIF(?, ''), dispatch_guide),
+                    dispatch_file   = COALESCE(NULLIF(?, ''), dispatch_file),
+                    dispatched_by   = ?
+                WHERE quote_number  = ?
+            ")->execute([$guide, $dispatchFile, $dispatchedBy, $quoteNumber]);
+
+            $response = ['success' => true];
             break;
     }
+
 } catch (Exception $e) {
     error_log("AJAX Logistics CRITICAL ERROR: " . $e->getMessage());
     $response = ['success' => false, 'error' => $e->getMessage()];

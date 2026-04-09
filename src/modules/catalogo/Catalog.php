@@ -156,7 +156,116 @@ class Catalog
         return $stmt->fetchAll(\PDO::FETCH_COLUMN);
     }
 
+    /**
+     * Importador NUEVO — Formato VS 2025
+     * Columnas: SKU | DESCRIPCION | MARCA | PARTNER | GREMIO | PVP | IVA% | STOCK | CATEGORIA | SUBCATEGORIA
+     * Separador: punto y coma (;) o coma (,) — autodetectado
+     * La primera fila siempre se descarta como cabecera.
+     */
     public function importProductsFromCsv($filePath, $defaultProviderId = null)
+    {
+        $handle = fopen($filePath, 'r');
+        if (!$handle) return false;
+
+        // Detectar BOM UTF-8 y saltearlo
+        $bom = fread($handle, 3);
+        if ($bom !== "\xEF\xBB\xBF") rewind($handle);
+
+        // Detectar delimitador
+        $firstLine = fgets($handle);
+        $delimiter = (substr_count($firstLine, ';') >= substr_count($firstLine, ',')) ? ';' : ',';
+        rewind($handle);
+        // Saltar BOM de nuevo si existe
+        $bom2 = fread($handle, 3);
+        if ($bom2 !== "\xEF\xBB\xBF") rewind($handle);
+
+        // Descartar cabecera
+        fgetcsv($handle, 2000, $delimiter);
+
+        $imported  = 0;
+        $errors    = [];
+
+        while (($row = fgetcsv($handle, 2000, $delimiter)) !== false) {
+            // Ignorar filas vacías o sin SKU
+            if (count($row) < 3) continue;
+            $sku = trim($row[0] ?? '');
+            if ($sku === '') continue;
+
+            $description  = trim($row[1] ?? '');
+            $brand        = trim($row[2] ?? '');
+            $pricePartner = $this->parsePrice($row[3] ?? null);  // col 4: PARTNER
+            $priceGremio  = $this->parsePrice($row[4] ?? null);  // col 5: GREMIO
+            $pricePvp     = $this->parsePrice($row[5] ?? null);  // col 6: PVP
+            $ivaRate      = isset($row[6]) && trim($row[6]) !== '' ? floatval(str_replace(',', '.', trim($row[6]))) : 21.00;
+            $stock        = isset($row[7]) && trim($row[7]) !== '' ? intval($row[7]) : 0;
+            $category     = trim($row[8] ?? '');
+            $subcategory  = trim($row[9] ?? '');
+
+            $sql = "INSERT INTO products
+                        (sku, description, brand, price_partner, price_gremio, price_pvp,
+                         iva_rate, stock_current, category, subcategory,
+                         unit_cost_usd, unit_price_usd)
+                    VALUES
+                        (:sku, :description, :brand, :price_partner, :price_gremio, :price_pvp,
+                         :iva_rate, :stock, :category, :subcategory,
+                         0, 0)
+                    ON DUPLICATE KEY UPDATE
+                        description  = VALUES(description),
+                        brand        = VALUES(brand),
+                        price_partner = VALUES(price_partner),
+                        price_gremio  = VALUES(price_gremio),
+                        price_pvp     = VALUES(price_pvp),
+                        iva_rate      = VALUES(iva_rate),
+                        stock_current = VALUES(stock_current),
+                        category      = VALUES(category),
+                        subcategory   = VALUES(subcategory)";
+
+            try {
+                $stmt = $this->db->prepare($sql);
+                $stmt->execute([
+                    ':sku'           => $sku,
+                    ':description'   => $description,
+                    ':brand'         => $brand,
+                    ':price_partner' => $pricePartner,
+                    ':price_gremio'  => $priceGremio,
+                    ':price_pvp'     => $pricePvp,
+                    ':iva_rate'      => $ivaRate,
+                    ':stock'         => $stock,
+                    ':category'      => $category,
+                    ':subcategory'   => $subcategory,
+                ]);
+                $imported++;
+            } catch (\Exception $e) {
+                $errors[] = "SKU $sku: " . $e->getMessage();
+            }
+        }
+
+        fclose($handle);
+        return $imported;
+    }
+
+    /**
+     * Convierte un valor de precio del CSV a float.
+     * Acepta: 1500, 1500.50, 1500,50 — descarta valores vacíos/nulos
+     */
+    private function parsePrice($raw)
+    {
+        if ($raw === null || trim($raw) === '') return null;
+        // Eliminar separadores de miles (punto si hay 2 decimales al final con coma)
+        $clean = str_replace(['.', ','], ['', '.'], trim($raw));
+        // Si el resultado no es numérico, intentar solo reemplazar coma
+        if (!is_numeric($clean)) {
+            $clean = str_replace(',', '.', trim($raw));
+        }
+        return is_numeric($clean) ? floatval($clean) : null;
+    }
+
+    /**
+     * Importador LEGACY — Formato anterior
+     * Columnas: SKU; DESCRIPCION; MARCA; COSTO; IVA%; CATEGORIA; SUBCATEGORIA; PROVEEDOR; STOCK
+     * Mantenido para compatibilidad — no eliminar
+     */
+    public function importProductsFromCsvLegacy($filePath, $defaultProviderId = null)
     {
         $handle = fopen($filePath, "r");
         if (!$handle)
@@ -175,7 +284,7 @@ class Catalog
 
         while (($data = fgetcsv($handle, 1000, $delimiter)) !== FALSE) {
             if (count($data) < 4)
-                continue; // Basic check (SKU, Desc, Brand, Cost)
+                continue;
 
             $sku = trim($data[0]);
             $description = trim($data[1]);
@@ -203,14 +312,14 @@ class Catalog
             }
 
             $this->addProduct([
-                'sku' => $sku,
-                'description' => $description,
-                'brand' => $brand,
+                'sku'           => $sku,
+                'description'   => $description,
+                'brand'         => $brand,
                 'unit_cost_usd' => $cost,
-                'iva_rate' => $iva,
-                'category' => $catName,
-                'subcategory' => $subcatName,
-                'supplier_id' => $supplierId,
+                'iva_rate'      => $iva,
+                'category'      => $catName,
+                'subcategory'   => $subcatName,
+                'supplier_id'   => $supplierId,
                 'stock_current' => $stock
             ]);
 

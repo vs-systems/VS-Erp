@@ -129,7 +129,7 @@ $logisticsPhases = [
 </head>
 
 <body
-    class="bg-white dark:bg-[#101822] text-slate-800 dark:text-white antialiased overflow-hidden transition-colors duration-300 uppercase">
+    class="bg-white dark:bg-[#101822] text-slate-800 dark:text-white antialiased overflow-hidden transition-colors duration-300">
     <div class="flex h-screen w-full">
         <!-- Sidebar Inclusion -->
         <?php include 'sidebar.php'; ?>
@@ -281,19 +281,19 @@ $logisticsPhases = [
                                 <div class="w-full space-y-2">
                                     <div class="flex justify-between items-center text-xs">
                                         <span class="flex items-center gap-2"><span
-                                                class="size-2 rounded-full bg-emerald-500"></span> Confirmadas</span>
+                                                class="size-2 rounded-full bg-[#B2E2F2]"></span> Confirmadas</span>
                                         <span
                                             class="font-bold"><?php echo $statusStats['quotations']['confirmadas']; ?></span>
                                     </div>
                                     <div class="flex justify-between items-center text-xs">
                                         <span class="flex items-center gap-2"><span
-                                                class="size-2 rounded-full bg-amber-500"></span> Pendientes</span>
+                                                class="size-2 rounded-full bg-[#FFFFD1]"></span> Pendientes</span>
                                         <span
                                             class="font-bold"><?php echo $statusStats['quotations']['pendientes']; ?></span>
                                     </div>
                                     <div class="flex justify-between items-center text-xs">
                                         <span class="flex items-center gap-2"><span
-                                                class="size-2 rounded-full bg-red-500"></span> Perdidas</span>
+                                                class="size-2 rounded-full bg-[#FFB7B2]"></span> Perdidas</span>
                                         <span class="font-bold"><?php echo $statusStats['quotations']['perdidas']; ?></span>
                                     </div>
                                 </div>
@@ -328,18 +328,18 @@ $logisticsPhases = [
                                 <div class="w-full space-y-1">
                                     <div class="flex justify-between items-center text-xs">
                                         <span class="flex items-center gap-2"><span
-                                                class="size-2 rounded-full bg-blue-500"></span> Confirmadas</span>
+                                                class="size-2 rounded-full bg-[#A7C7E7]"></span> Confirmadas</span>
                                         <span
                                             class="font-bold"><?php echo $statusStats['purchases']['confirmadas']; ?></span>
                                     </div>
                                     <div class="flex justify-between items-center text-xs">
                                         <span class="flex items-center gap-2"><span
-                                                class="size-2 rounded-full bg-purple-500"></span> Pagadas</span>
+                                                class="size-2 rounded-full bg-[#ded2ee]"></span> Pagadas</span>
                                         <span class="font-bold"><?php echo $statusStats['purchases']['pagadas']; ?></span>
                                     </div>
                                     <div class="flex justify-between items-center text-xs">
                                         <span class="flex items-center gap-2"><span
-                                                class="size-2 rounded-full bg-amber-500"></span> Pendientes</span>
+                                                class="size-2 rounded-full bg-[#FFFFD1]"></span> Pendientes</span>
                                         <span
                                             class="font-bold"><?php echo $statusStats['purchases']['pendientes']; ?></span>
                                     </div>
@@ -372,7 +372,7 @@ $logisticsPhases = [
                                     <div
                                         class="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
                                         <div class="flex items-center gap-3">
-                                            <div class="w-2 h-2 rounded-full bg-green-500"></div>
+                                            <div class="w-2 h-2 rounded-full bg-[#B2E2F2]"></div>
                                             <span
                                                 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Aprobados</span>
                                         </div>
@@ -382,7 +382,7 @@ $logisticsPhases = [
                                     <div
                                         class="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
                                         <div class="flex items-center gap-3">
-                                            <div class="w-2 h-2 rounded-full bg-amber-500"></div>
+                                            <div class="w-2 h-2 rounded-full bg-[#FFFFD1]"></div>
                                             <span
                                                 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Pendientes</span>
                                         </div>
@@ -392,7 +392,7 @@ $logisticsPhases = [
                                     <div
                                         class="flex items-center justify-between p-4 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-100 dark:border-white/5">
                                         <div class="flex items-center gap-3">
-                                            <div class="w-2 h-2 rounded-full bg-red-500"></div>
+                                            <div class="w-2 h-2 rounded-full bg-[#FFB7B2]"></div>
                                             <span
                                                 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Perdidos
                                                 / Cancelados</span>
@@ -580,7 +580,7 @@ $logisticsPhases = [
                         labels: ['Confirmadas', 'Pendientes', 'Perdidas'],
                         datasets: [{
                             data: [<?php echo $statusStats['quotations']['confirmadas']; ?>, <?php echo $statusStats['quotations']['pendientes']; ?>, <?php echo $statusStats['quotations']['perdidas']; ?>],
-                            backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                            backgroundColor: ['#B2E2F2', '#FFFFD1', '#FFB7B2'],
                             borderWidth: 0
                         }]
                     },
@@ -597,7 +597,7 @@ $logisticsPhases = [
                         labels: ['Confirmadas', 'Pagadas', 'Pendientes'],
                         datasets: [{
                             data: [<?php echo $statusStats['purchases']['confirmadas']; ?>, <?php echo $statusStats['purchases']['pagadas']; ?>, <?php echo $statusStats['purchases']['pendientes']; ?>],
-                            backgroundColor: ['#3b82f6', '#a855f7', '#f59e0b'],
+                            backgroundColor: ['#A7C7E7', '#ded2ee', '#FFFFD1'],
                             borderWidth: 0
                         }]
                     },
@@ -614,7 +614,7 @@ $logisticsPhases = [
                         labels: ['Aprobados', 'Pendientes', 'Perdidos'],
                         datasets: [{
                             data: [<?php echo $budgetStats['Aprobados']; ?>, <?php echo $budgetStats['Pendientes']; ?>, <?php echo $budgetStats['Perdidos']; ?>],
-                            backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                            backgroundColor: ['#B2E2F2', '#FFFFD1', '#FFB7B2'],
                             borderWidth: 0,
                             hoverOffset: 4
                         }]

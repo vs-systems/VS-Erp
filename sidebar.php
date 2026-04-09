@@ -14,65 +14,91 @@ if (!isset($userAuth)) {
 $userName = $_SESSION['full_name'] ?? ($_SESSION['username'] ?? 'Usuario');
 $userRole = $_SESSION['role'] ?? 'Invitado';
 
-// New Menu Structure
+// ── MENÚ PRINCIPAL ───────────────────────────────────────────────
+// Módulos suspendidos: comentados con // SUSPENDIDO para reactivar a futuro
 $menuStructure = [
     [
-        'label' => 'VENTAS',
-        'id' => 'ventas',
-        'icon' => 'attach_money',
+        'label' => 'Ventas',
+        'id'    => 'ventas',
+        'icon'  => 'attach_money',
         'items' => [
-            ['label' => 'Nueva Cotización', 'href' => 'cotizador.php', 'icon' => 'add_shopping_cart'],
-            ['label' => 'Historial', 'href' => 'presupuestos.php', 'icon' => 'history'],
-            ['label' => 'Perdidos', 'href' => 'presupuestos.php?view=perdidos', 'icon' => 'cancel'],
-            ['label' => 'Listas de Precios', 'href' => 'listas_precios.php', 'icon' => 'price_check'],
-            ['label' => 'CRM', 'href' => 'crm.php', 'icon' => 'group'],
-            ['label' => 'Análisis Rentabilidad', 'href' => 'analisis.php', 'icon' => 'analytics'],
-            ['label' => 'Análisis Competencia', 'href' => 'analisis_competencia.php', 'icon' => 'compare_arrows'],
-            ['label' => 'Calendario', 'href' => 'https://calendar.google.com/calendar/u/0/r?cid=dmVjaW5vc2VndXJvMEBnbWFpbC5jb20', 'icon' => 'calendar_month', 'target' => '_blank'],
+            ['label' => 'Nuevo Pedido',        'href' => 'cotizador.php',     'icon' => 'add_shopping_cart'],
+            ['label' => 'Histórico de Pedidos', 'href' => 'presupuestos.php',  'icon' => 'history'],
+            // Perdidos → ahora dentro de presupuestos.php como filtro/color rojo
+            ['label' => 'Importar Lista',       'href' => 'importar.php',      'icon' => 'upload_file'],
+            ['label' => 'CRM',                  'href' => 'crm.php',           'icon' => 'group'],
+            ['label' => 'Calendario',           'href' => 'https://calendar.google.com/calendar/u/0/r?cid=dmVjaW5vc2VndXJvMEBnbWFpbC5jb20', 'icon' => 'calendar_month', 'target' => '_blank'],
+            // SUSPENDIDO: ['label' => 'Análisis Rentabilidad', 'href' => 'analisis.php',           'icon' => 'analytics'],
+            // SUSPENDIDO: ['label' => 'Análisis Competencia',  'href' => 'analisis_competencia.php','icon' => 'compare_arrows'],
         ]
     ],
     [
-        'label' => 'LOGÍSTICA',
-        'id' => 'logistica_new',
-        'icon' => 'local_shipping',
+        'label' => 'Logística',
+        'id'    => 'logistica_new',
+        'icon'  => 'local_shipping',
         'items' => [
-            ['label' => 'En Armado', 'href' => 'logistica.php?view=armado', 'icon' => 'engineering'],
-            ['label' => 'Pendientes', 'href' => 'logistica.php?view=pendientes', 'icon' => 'schedule'],
-            ['label' => 'Archivados', 'href' => 'logistica.php?view=archivados', 'icon' => 'inventory_2'],
+            ['label' => 'Entregas Pendientes', 'href' => 'logistica.php?view=pendientes', 'icon' => 'schedule'],
+            ['label' => 'Envíos Realizados',   'href' => 'logistica.php?view=archivados', 'icon' => 'inventory_2'],
+            // SUSPENDIDO: ['label' => 'En Armado', 'href' => 'logistica.php?view=armado', 'icon' => 'engineering'],
         ]
     ],
     [
-        'label' => 'CONTABILIDAD',
-        'id' => 'contabilidad',
-        'icon' => 'account_balance',
+        'label' => 'Pedidos',
+        'id'    => 'contabilidad',
+        'icon'  => 'receipt_long',
         'items' => [
-            ['label' => 'Compras', 'href' => 'compras.php', 'icon' => 'shopping_cart_checkout'],
-            ['label' => 'Facturación', 'href' => 'facturacion.php', 'icon' => 'receipt'],
-            ['label' => 'Ctas. Corrientes', 'href' => 'cuentas_corrientes.php', 'icon' => 'account_balance_wallet'],
-            ['label' => 'Ctas. Corrientes Prov.', 'href' => 'cuentas_corrientes_proveedores.php', 'icon' => 'payments'],
-            ['label' => 'Tesorería', 'href' => 'tesoreria.php', 'icon' => 'savings'],
+            ['label' => 'Nuevo Pedido',          'href' => 'facturacion.php?action=new', 'icon' => 'add_circle'],
+            ['label' => 'Pedidos Pendientes',     'href' => 'facturacion.php?view=pendientes', 'icon' => 'pending_actions'],
+            ['label' => 'Pedidos Cobrados',       'href' => 'facturacion.php?view=cobrados',   'icon' => 'check_circle'],
+            // SUSPENDIDO: ['label' => 'Compras',                'href' => 'compras.php',                    'icon' => 'shopping_cart_checkout'],
+            // SUSPENDIDO: ['label' => 'Ctas. Corrientes',       'href' => 'cuentas_corrientes.php',         'icon' => 'account_balance_wallet'],
+            // SUSPENDIDO: ['label' => 'Ctas. Corrientes Prov.', 'href' => 'cuentas_corrientes_proveedores.php', 'icon' => 'payments'],
+            // SUSPENDIDO: ['label' => 'Tesorería',              'href' => 'tesoreria.php',                  'icon' => 'savings'],
         ]
     ],
     [
-        'label' => 'INFORMES',
-        'id' => 'informes_folder',
-        'icon' => 'bar_chart',
+        'label' => 'Informes',
+        'id'    => 'informes_folder',
+        'icon'  => 'bar_chart',
         'items' => [
-            ['label' => 'Mapa Clientes/Proveedores', 'href' => 'informes.php', 'icon' => 'map'],
-            ['label' => 'Reporte Rentabilidad', 'href' => 'reporte_rentabilidad.php', 'icon' => 'trending_up'],
+            ['label' => 'Mapa de Clientes',      'href' => 'informes.php',              'icon' => 'map'],
+            ['label' => 'Rentabilidad por Lista', 'href' => 'reporte_rentabilidad.php',  'icon' => 'trending_up'],
         ]
     ],
     [
-        'label' => 'BASES DE DATOS',
-        'id' => 'bdd',
-        'icon' => 'database',
+        'label' => 'Bases de Datos',
+        'id'    => 'bdd',
+        'icon'  => 'database',
         'items' => [
-            ['label' => 'Clientes', 'href' => 'clientes.php', 'icon' => 'groups'],
-            ['label' => 'Proveedores', 'href' => 'proveedores.php', 'icon' => 'factory'],
-            ['label' => 'Catálogo Gremio', 'href' => 'catalogo.php', 'icon' => 'engineering', 'target' => '_blank'],
+            ['label' => 'Clientes',        'href' => 'clientes.php',   'icon' => 'groups'],
+            ['label' => 'Proveedores',     'href' => 'proveedores.php','icon' => 'factory'],
+            ['label' => 'Importar CSV',    'href' => 'importar.php',   'icon' => 'upload_file'],
+            ['label' => 'Productos',       'href' => 'productos.php',  'icon' => 'inventory_2'],
+            ['label' => 'Usuarios del ERP','href' => 'usuarios.php',   'icon' => 'manage_accounts'],
+        ]
+    ],
+    [
+        'label' => 'Portal Web',
+        'id'    => 'portal_web',
+        'icon'  => 'storefront',
+        'items' => [
+            ['label' => 'Catálogo Web',     'href' => 'catalogo_web.php', 'icon' => 'open_in_new', 'target' => '_blank'],
+            ['label' => 'Catálogo Gremio',  'href' => 'catalogo.php',     'icon' => 'engineering',  'target' => '_blank'],
+            ['label' => 'Registro público', 'href' => 'registro.php',     'icon' => 'how_to_reg',   'target' => '_blank'],
         ]
     ],
 ];
+
+
+
+// Badge de clientes pendientes de verificación (Bloque 9)
+$_pendingClientsCount = 0;
+try {
+    $dbSidebar = \Vsys\Lib\Database::getInstance();
+    $_pendingClientsCount = (int)$dbSidebar->query(
+        "SELECT COUNT(*) FROM entities WHERE type='client' AND is_verified=0"
+    )->fetchColumn();
+} catch (\Exception $e) { /* Si la columna is_verified aun no existe, ignorar */ }
 
 ?>
 
@@ -82,14 +108,14 @@ $menuStructure = [
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
     rel="stylesheet" />
 <style>
+    /* Global normalization */
     body {
-        text-transform: uppercase !important;
+        /* Remove global uppercase */
     }
 
     input,
     textarea,
-    select,
-    .normal-case {
+    select {
         text-transform: none !important;
     }
 </style>
@@ -108,7 +134,7 @@ $menuStructure = [
         </div>
         <div>
             <h1 class="text-slate-800 dark:text-white text-lg font-bold leading-tight">VS System</h1>
-            <p class="text-slate-400 text-[10px] font-normal uppercase tracking-wider">ERP & Seguridad</p>
+            <p class="text-slate-400 text-[10px] font-medium tracking-wider">ERP & Seguridad</p>
         </div>
     </div>
 
@@ -130,9 +156,12 @@ $menuStructure = [
                         <span
                             class="material-symbols-outlined text-slate-400 group-hover:text-[#136dec] transition-colors"><?php echo $section['icon']; ?></span>
                         <span
-                            class="font-bold text-xs text-slate-600 dark:text-slate-300 uppercase tracking-wider group-hover:text-[#136dec] transition-colors"><?php echo $section['label']; ?></span>
+                            class="font-bold text-xs text-slate-600 dark:text-slate-300 tracking-wider group-hover:text-[#136dec] transition-colors"><?php echo $section['label']; ?></span>
+                        <?php if ($section['id'] === 'bdd' && $_pendingClientsCount > 0): ?>
+                            <span class="inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-amber-400 text-[#101822] text-[9px] font-black animate-pulse"><?php echo $_pendingClientsCount; ?></span>
+                        <?php endif; ?>
                     </div>
-                    <!-- Toggle Icon (X / + / Chevron) -->
+                    <!-- Toggle Icon (Chevron) -->
                     <span id="icon-<?php echo $section['id']; ?>"
                         class="material-symbols-outlined text-slate-400 text-lg transition-transform duration-300">expand_more</span>
                 </button>
@@ -154,11 +183,20 @@ $menuStructure = [
 
                         <a href="<?php echo $item['href']; ?>" <?php echo isset($item['target']) ? 'target="' . $item['target'] . '"' : ''; ?>
                             class="flex items-center gap-3 px-4 py-2.5 pl-11 text-sm font-medium transition-colors border-l-2 <?php echo $isActive ? 'border-[#136dec] text-[#136dec] bg-[#136dec]/5' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-[#136dec] hover:bg-slate-50 dark:hover:bg-[#16202e]'; ?>">
-                            <!-- Optional: small dot or icon for subitems -->
                             <?php if ($isActive): ?>
                                 <span class="w-1.5 h-1.5 rounded-full bg-[#136dec] absolute left-6"></span>
                             <?php endif; ?>
+                            <?php
+                            // Badge para Clientes con pendientes
+                            $isBadgeItem = ($item['href'] === 'clientes.php' && $_pendingClientsCount > 0);
+                            ?>
+                            <?php if (isset($item['icon'])): ?>
+                                <span class="material-symbols-outlined text-base text-slate-400" style="font-size:15px;"><?php echo $item['icon']; ?></span>
+                            <?php endif; ?>
                             <?php echo $item['label']; ?>
+                            <?php if ($isBadgeItem): ?>
+                                <span class="ml-auto inline-flex items-center justify-center h-4 min-w-[16px] px-1 rounded-full bg-amber-400 text-[#101822] text-[9px] font-black animate-pulse"><?php echo $_pendingClientsCount; ?></span>
+                            <?php endif; ?>
                         </a>
                     <?php endforeach; ?>
                 </div>
@@ -175,7 +213,7 @@ $menuStructure = [
             </div>
             <div class="flex-1 min-w-0">
                 <p class="text-sm font-bold text-slate-800 dark:text-white truncate"><?php echo $userName; ?></p>
-                <p class="text-[10px] font-bold text-slate-400 uppercase"><?php echo $userRole; ?></p>
+                <p class="text-[10px] font-bold text-slate-400 capitalize"><?php echo strtolower($userRole); ?></p>
             </div>
             <div class="flex flex-col gap-1 items-center">
                 <a href="configuration.php" class="text-slate-400 hover:text-[#136dec] mb-1" title="Configuración">

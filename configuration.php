@@ -1,15 +1,17 @@
-﻿<?php
+<?php
 require_once 'auth_check.php';
 require_once __DIR__ . '/src/config/config.php';
 require_once __DIR__ . '/src/lib/Database.php';
 require_once __DIR__ . '/src/modules/catalogo/Catalog.php';
 require_once __DIR__ . '/src/modules/config/PriceList.php';
 require_once __DIR__ . '/src/lib/User.php';
+require_once __DIR__ . '/src/modules/cleanup/Cleanup.php';
 
 use Vsys\Lib\Database;
 use Vsys\Modules\Catalogo\Catalog;
 use Vsys\Modules\Config\PriceList;
 use Vsys\Lib\User;
+use Vsys\Modules\Cleanup\Cleanup;
 
 $db = Database::getInstance();
 $catalog = new Catalog();
@@ -200,6 +202,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $db->prepare("DELETE FROM entities WHERE id = ?")->execute([$_POST['id']]);
         $message = "Entidad eliminada correctamente.";
         $status = 'success';
+    }
+
+    // ZONA PELIGROSA - Delete Actions
+    if ($isAdmin && in_array($action, ['clean_prices', 'clean_users', 'clean_brands', 'clean_products', 'clean_categories', 'clean_clients', 'clean_suppliers'])) {
+        try {
+            switch ($action) {
+                case 'clean_prices':
+                    Cleanup::cleanPriceLists();
+                    $message = "Listas de precios eliminadas/reseteadas.";
+                    break;
+                case 'clean_users':
+                    Cleanup::cleanUsers();
+                    $message = "Usuarios secundarios eliminados.";
+                    break;
+                case 'clean_brands':
+                    Cleanup::cleanBrands();
+                    $message = "Todas las marcas eliminadas.";
+                    break;
+                case 'clean_categories':
+                    Cleanup::cleanCategories();
+                    $message = "Todas las categorías eliminadas.";
+                    break;
+                case 'clean_clients':
+                    Cleanup::cleanClients();
+                    $message = "Todos los clientes eliminados.";
+                    break;
+                case 'clean_suppliers':
+                    Cleanup::cleanSuppliers();
+                    $message = "Todos los proveedores eliminados.";
+                    break;
+                case 'clean_products':
+                    $doBackup = isset($_POST['backup_products']) && $_POST['backup_products'] === '1';
+                    $count = Cleanup::cleanAllProducts($doBackup);
+                    $message = "Se eliminaron {$count} productos correctamente.";
+                    break;
+            }
+            $status = 'success';
+        } catch (\Exception $e) {
+            $message = "Error en operación crítica: " . $e->getMessage();
+            $status = 'error';
+        }
     }
 
     // Import Data handler
@@ -400,7 +443,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     legales.</p>
                             </a>
 
-                            <!-- Gestión Financiera (NEW) -->
+                            <!-- 
+                            Módulos ocultos a pedido
                             <a href="abm_billing.php"
                                 class="group bg-white dark:bg-[#16202e] p-6 rounded-2xl border border-slate-200 dark:border-[#233348] hover:border-primary/50 transition-all hover:shadow-lg hover:shadow-primary/10">
                                 <div
@@ -422,9 +466,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <p class="text-xs text-slate-500 dark:text-slate-400">Corregir movimientos y saldos
                                     históricos.</p>
                             </a>
+                            -->
 
                             <!-- ABM Clientes -->
-                            <a href="?section=clients"
+                            <a href="config_entities.php?type=client"
                                 class="group bg-white dark:bg-[#16202e] p-6 rounded-2xl border border-slate-200 dark:border-[#233348] hover:border-primary/50 transition-all hover:shadow-lg hover:shadow-primary/10">
                                 <div
                                     class="w-12 h-12 rounded-xl bg-green-500/10 text-green-500 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
@@ -457,15 +502,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <p class="text-xs text-slate-500 dark:text-slate-400">Pipelines, estados y orígenes.</p>
                             </a>
 
-                            <!-- ABM Compras (NUEVO) -->
-                            <a href="?section=purchases"
+                            <!-- ABM Proveedores -->
+                            <a href="config_entities.php?type=supplier"
                                 class="group bg-white dark:bg-[#16202e] p-6 rounded-2xl border border-slate-200 dark:border-[#233348] hover:border-primary/50 transition-all hover:shadow-lg hover:shadow-primary/10">
                                 <div
                                     class="w-12 h-12 rounded-xl bg-teal-500/10 text-teal-500 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                                     <span class="material-symbols-outlined text-3xl">shopping_cart</span>
                                 </div>
-                                <h3 class="font-bold text-lg mb-1">ABM Compras</h3>
-                                <p class="text-xs text-slate-500 dark:text-slate-400">Gestión de compras y proveedores.</p>
+                                <h3 class="font-bold text-lg mb-1">ABM Proveedores</h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">Gestión de proveedores.</p>
                             </a>
 
                             <!-- ABM Marcas -->
@@ -480,7 +525,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </a>
 
                             <!-- ABM Transportes (NUEVO) -->
-                            <a href="?section=transports"
+                            <a href="config_transports.php"
                                 class="group bg-white dark:bg-[#16202e] p-6 rounded-2xl border border-slate-200 dark:border-[#233348] hover:border-emerald-500/50 transition-all hover:shadow-lg hover:shadow-emerald-500/10">
                                 <div
                                     class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
@@ -550,16 +595,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </p>
                             </a>
 
-                            <!-- Eliminación de Datos (NUEVO) -->
+                            <!-- Zona Peligrosa (NUEVO) -->
                             <?php if ($isAdmin): ?>
-                                <a href="abm_delete_data.php"
+                                <a href="?section=dangerous_zone"
                                     class="group bg-white dark:bg-[#16202e] p-6 rounded-2xl border border-red-200 dark:border-red-900/30 hover:border-red-500/50 transition-all hover:shadow-lg hover:shadow-red-500/10">
                                     <div
-                                        class="w-12 h-12 rounded-xl bg-red-500/10 text-red-500 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                                        <span class="material-symbols-outlined text-3xl">delete_sweep</span>
+                                        class="w-12 h-12 rounded-xl bg-red-500/10 text-red-600 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                        <span class="material-symbols-outlined text-3xl">warning</span>
                                     </div>
-                                    <h3 class="font-bold text-lg mb-1">Borrado de Datos</h3>
-                                    <p class="text-xs text-red-500/70">Limpieza controlada de bases de datos.</p>
+                                    <h3 class="font-bold text-lg mb-1 text-red-600">ZONA PELIGROSA</h3>
+                                    <p class="text-xs text-red-500/70">Limpieza masiva de datos y reseteo.</p>
                                 </a>
                             <?php endif; ?>
 
@@ -793,6 +838,125 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 </tbody>
                             </table>
                         </div>
+
+                    <?php elseif ($currentSection === 'dangerous_zone' && $isAdmin): ?>
+                        <!-- ZONA PELIGROSA -->
+                        <div class="bg-[#2a1111] dark:bg-[#1a0b0b] p-8 rounded-2xl border border-red-500/30 relative overflow-hidden">
+                            <!-- Background warning pattern -->
+                            <div class="absolute inset-0 opacity-5 pointer-events-none" style="background-image: repeating-linear-gradient(45deg, #ef4444 0, #ef4444 10px, transparent 10px, transparent 20px);"></div>
+                            
+                            <h3 class="text-2xl font-black mb-2 text-red-500 flex items-center gap-3">
+                                <span class="material-symbols-outlined text-4xl">warning</span>
+                                ZONA PELIGROSA
+                            </h3>
+                            <p class="text-red-400 mb-8 max-w-2xl text-sm leading-relaxed">
+                                Las acciones en esta sección son destructivas y no se pueden deshacer (a menos que haya un backup habilitado). Por favor, proceda con extrema precaución.
+                            </p>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                                
+                                <!-- Borrar Productos -->
+                                <div class="bg-black/20 p-6 rounded-xl border border-red-500/20 hover:border-red-500/50 transition-colors">
+                                    <h4 class="font-bold text-red-400 mb-2">Borrar TODOS los Productos</h4>
+                                    <p class="text-xs text-red-300/70 mb-4 h-8">Elimina el catálogo completo incluyendo precios de proveedores.</p>
+                                    <button onclick="confirmDangerousAction('clean_products', true)" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider w-full transition-colors flex items-center justify-center gap-2">
+                                        <span class="material-symbols-outlined text-[16px]">delete_forever</span> Ejecutar
+                                    </button>
+                                </div>
+
+                                <!-- Borrar Usuarios -->
+                                <div class="bg-black/20 p-6 rounded-xl border border-red-500/20 hover:border-red-500/50 transition-colors">
+                                    <h4 class="font-bold text-red-400 mb-2">Borrar Usuarios</h4>
+                                    <p class="text-xs text-red-300/70 mb-4 h-8">Elimina todos los usuarios del sistema EXCEPTO los administradores.</p>
+                                    <button onclick="confirmDangerousAction('clean_users')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider w-full transition-colors flex items-center justify-center gap-2">
+                                        <span class="material-symbols-outlined text-[16px]">delete_forever</span> Ejecutar
+                                    </button>
+                                </div>
+                                
+                                <!-- Borrar Marcas / Categorias -->
+                                <div class="bg-black/20 p-6 rounded-xl border border-red-500/20 hover:border-red-500/50 transition-colors">
+                                    <h4 class="font-bold text-red-400 mb-2">Borrar Marcas y Categorías</h4>
+                                    <p class="text-xs text-red-300/70 mb-4 h-8">Limpia las tablas de marcas y categorías.</p>
+                                    <div class="flex gap-2">
+                                        <button onclick="confirmDangerousAction('clean_brands')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider w-1/2 transition-colors">Marcas</button>
+                                        <button onclick="confirmDangerousAction('clean_categories')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider w-1/2 transition-colors">Categorías</button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Borrar Clientes/Proveedores -->
+                                <div class="bg-black/20 p-6 rounded-xl border border-red-500/20 hover:border-red-500/50 transition-colors">
+                                    <h4 class="font-bold text-red-400 mb-2">Entidades</h4>
+                                    <p class="text-xs text-red-300/70 mb-4 h-8">Elimina todos los clientes o todos los proveedores.</p>
+                                    <div class="flex gap-2">
+                                        <button onclick="confirmDangerousAction('clean_clients')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider w-1/2 transition-colors">Clientes</button>
+                                        <button onclick="confirmDangerousAction('clean_suppliers')" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider w-1/2 transition-colors">Prov.</button>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <!-- Modal Confirmacion -->
+                        <div id="dangerModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[9999] hidden flex items-center justify-center p-4">
+                            <div class="bg-[#101822] border border-red-500 rounded-2xl p-8 max-w-sm w-full relative shadow-2xl shadow-red-900/50">
+                                <h3 class="text-xl font-bold text-red-500 mb-4 text-center">CONFIRMACIÓN REQUERIDA</h3>
+                                <p class="text-sm text-slate-300 text-center mb-6">Para proceder, escriba la palabra <strong class="text-white bg-red-500/20 px-2 py-0.5 rounded">CONFIRMAR</strong> a continuación.</p>
+                                
+                                <form method="POST" id="dangerForm">
+                                    <input type="hidden" name="action" id="dangerActionInput" value="">
+                                    
+                                    <div id="backupCheckboxDiv" class="mb-4 hidden flex items-center gap-2 bg-slate-800/50 p-3 rounded-lg border border-slate-700">
+                                        <input type="checkbox" name="backup_products" value="1" id="backupProducts" class="rounded border-slate-600 text-primary focus:ring-primary bg-slate-900" checked>
+                                        <label for="backupProducts" class="text-xs text-slate-300 cursor-pointer">Realizar backup antes de borrar</label>
+                                    </div>
+
+                                    <input type="text" id="confirmWord" autocomplete="off" class="w-full bg-black/50 border border-slate-700 rounded-lg text-center font-bold text-red-400 uppercase tracking-widest mb-4" placeholder="...">
+                                    
+                                    <div class="flex gap-3">
+                                        <button type="button" onclick="closeDangerModal()" class="w-1/2 bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-colors">Cancelar</button>
+                                        <button type="submit" id="dangerSubmitBtn" class="w-1/2 bg-red-600/50 text-red-200 cursor-not-allowed font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all" disabled>Destruir</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <script>
+                            const confirmInput = document.getElementById('confirmWord');
+                            const submitBtn = document.getElementById('dangerSubmitBtn');
+
+                            if (confirmInput) {
+                                confirmInput.addEventListener('input', function() {
+                                    if(this.value.trim().toUpperCase() === 'CONFIRMAR') {
+                                        submitBtn.disabled = false;
+                                        submitBtn.classList.remove('bg-red-600/50', 'text-red-200', 'cursor-not-allowed');
+                                        submitBtn.classList.add('bg-red-600', 'hover:bg-red-500', 'text-white', 'shadow-[0_0_15px_rgba(220,38,38,0.5)]');
+                                    } else {
+                                        submitBtn.disabled = true;
+                                        submitBtn.classList.add('bg-red-600/50', 'text-red-200', 'cursor-not-allowed');
+                                        submitBtn.classList.remove('bg-red-600', 'hover:bg-red-500', 'text-white', 'shadow-[0_0_15px_rgba(220,38,38,0.5)]');
+                                    }
+                                });
+                            }
+
+                            function confirmDangerousAction(action, showBackup = false) {
+                                document.getElementById('dangerActionInput').value = action;
+                                document.getElementById('confirmWord').value = '';
+                                confirmInput.dispatchEvent(new Event('input')); // reset btn state
+                                document.getElementById('dangerModal').classList.remove('hidden');
+                                
+                                if(showBackup) {
+                                    document.getElementById('backupCheckboxDiv').classList.remove('hidden');
+                                } else {
+                                    document.getElementById('backupCheckboxDiv').classList.add('hidden');
+                                }
+                                
+                                setTimeout(() => document.getElementById('confirmWord').focus(), 100);
+                            }
+
+                            function closeDangerModal() {
+                                document.getElementById('dangerModal').classList.add('hidden');
+                            }
+                        </script>
 
                     <?php elseif ($currentSection === 'brands'):
                         $brands = $db->query("SELECT * FROM brands ORDER BY name")->fetchAll();

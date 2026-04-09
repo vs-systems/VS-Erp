@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once 'auth_check.php';
 require_once __DIR__ . '/src/config/config.php';
 require_once __DIR__ . '/src/lib/Database.php';
@@ -12,16 +12,11 @@ $catalog = new Catalog();
 $priceListModule = new PriceList();
 
 $products = $catalog->getAllProducts();
-$lists = $priceListModule->getAll();
+$margins = $priceListModule->getMargins();
 
-$listsByName = [];
-foreach ($lists as $l) {
-    $listsByName[$l['name']] = $l['margin_percent'];
-}
-
-$gremioMargin = $listsByName['Gremio'] ?? 30;
-$webMargin = $listsByName['Web'] ?? 40;
-$mlMargin = $listsByName['MercadoLibre'] ?? 50;
+$gremioMargin = $margins['gremio'] ?? 30;
+$webMargin = $margins['web'] ?? 40;
+$mlMargin = $margins['mercadolibre'] ?? $margins['ml'] ?? 50;
 ?>
 <!DOCTYPE html>
 <html class="dark" lang="es">

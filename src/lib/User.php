@@ -137,14 +137,15 @@ class User
     public function createUser($data)
     {
         $hash = password_hash($data['password'], PASSWORD_DEFAULT);
-        $sql = "INSERT INTO users (username, password_hash, role, entity_id, status) VALUES (?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO users (username, password_hash, role, entity_id, status, full_name) VALUES (?, ?, ?, ?, ?, ?)";
         $stmt = $this->db->prepare($sql);
         return $stmt->execute([
             $data['username'],
             $hash,
             $data['role'],
             $data['entity_id'] ?? null,
-            $data['status'] ?? 'Active'
+            $data['status'] ?? 'Active',
+            $data['full_name'] ?? $data['username'] // Usar fullname que pasemos, fallback a username
         ]);
     }
 

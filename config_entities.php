@@ -42,15 +42,17 @@ $editData = [
     'lat' => '',
     'lng' => '',
     'transport' => '',
-    'is_transport' => 0
+    'is_transport' => 0,
+    'tipo_cliente' => 'publico'
 ];
 
 if ($id) {
     $stmt = $db->prepare("SELECT * FROM entities WHERE id = ?");
     $stmt->execute([$id]);
-    $res = $stmt->fetch();
-    if ($res)
-        $editData = $res;
+    $res = $stmt->fetch(\PDO::FETCH_ASSOC);
+    if ($res) {
+        $editData = array_merge($editData, $res);
+    }
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -80,7 +82,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'lat' => $_POST['lat'] ?? null,
         'lng' => $_POST['lng'] ?? null,
         'transport' => $_POST['transport'] ?? null,
-        'is_transport' => isset($_POST['is_transport']) ? 1 : 0
+        'is_transport' => isset($_POST['is_transport']) ? 1 : 0,
+        'tipo_cliente' => $_POST['tipo_cliente'] ?? 'publico'
     ];
 
     if ($clientModule->saveClient($data)) {
@@ -376,6 +379,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             <option value="PUBLICO" <?php echo $editData['client_profile'] == 'PUBLICO' ? 'selected' : ''; ?>>Público</option>
                                         </select>
                                     </div>
+                                    <div>
+                                        <label class="form-label-vsys">Tipo de Cliente
+                                            <span style="font-size:9px;font-weight:700;background:rgba(19,109,236,.15);color:#136dec;border-radius:4px;padding:1px 6px;margin-left:4px;">PRECIOS</span>
+                                        </label>
+                                        <select name="tipo_cliente" class="form-input-vsys" id="sel-tipo-cliente">
+                                            <option value="publico"  <?php echo ($editData['tipo_cliente'] ?? 'publico') === 'publico'  ? 'selected' : ''; ?>>Público (PVP)</option>
+                                            <option value="gremio"   <?php echo ($editData['tipo_cliente'] ?? '') === 'gremio'   ? 'selected' : ''; ?>>Gremio (precio Gremio)</option>
+                                            <option value="partner"  <?php echo ($editData['tipo_cliente'] ?? '') === 'partner'  ? 'selected' : ''; ?>>Partner (precio Partner)</option>
+                                        </select>
+                                        <p style="font-size:10px;color:#64748b;margin-top:4px;">Define qué lista de precios verá este cliente en el catálogo web.</p>
+                                    </div>
                                 <?php endif; ?>
                             </div>
 
@@ -385,22 +399,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         class="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary shadow-sm transition-all bg-white dark:bg-[#101822]">
                                     <span class="text-sm font-bold dark:text-white text-slate-800">Habilitado</span>
                                 </label>
-
-                                <label class="flex items-center gap-3 cursor-pointer group">
-                                    <input type="checkbox" name="is_transport" <?php echo $editData['is_transport'] ? 'checked' : ''; ?>
-                                        class="w-5 h-5 rounded border-slate-300 text-emerald-500 focus:ring-emerald-500 shadow-sm transition-all bg-white dark:bg-[#101822]">
-                                    <span class="text-sm font-bold dark:text-white text-slate-800">¿Es
-                                        Transporte?</span>
-                                </label>
-
-                                <?php if ($type == 'client'): ?>
-                                    <label class="flex items-center gap-3 cursor-pointer group">
-                                        <input type="checkbox" name="is_retention_agent" <?php echo $editData['is_retention_agent'] ? 'checked' : ''; ?>
-                                            class="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary shadow-sm transition-all bg-white dark:bg-[#101822]">
-                                        <span class="text-sm font-bold dark:text-white text-slate-800">Agente
-                                            Retención</span>
-                                    </label>
-                                <?php endif; ?>
                             </div>
                         </div>
 
