@@ -4,7 +4,7 @@
  * Vecino Seguro ERP
  *
  * Flujo:
- *  1. El usuario ingresa email + CUIT/DNI + fecha de nacimiento
+ *  1. El usuario ingresa email + CUIT/DNI + año de nacimiento
  *  2. Si los 3 datos coinciden → se genera nueva clave VS{año}{6chars}
  *  3. Se muestra en pantalla (NO se envía por email)
  *  4. Se registra en client_credentials_log con action='reset'
@@ -28,35 +28,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email      = strtolower(trim($_POST['email']          ?? ''));
     $taxId      = preg_replace('/[^0-9]/', '', $_POST['tax_id'] ?? '');  // Solo dígitos
     $docNumber  = preg_replace('/[^0-9]/', '', $_POST['document_number'] ?? '');
-    $birthDate  = trim($_POST['birth_date'] ?? '');
+    $birthYear  = trim($_POST['birth_year'] ?? '');
 
     // Validaciones básicas
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $message = 'El email ingresado no es válido.';
         $status  = 'error';
-    } elseif (empty($birthDate)) {
-        $message = 'La fecha de nacimiento es obligatoria.';
+    } elseif (empty($birthYear)) {
+        $message = 'El año de nacimiento es obligatorio.';
         $status  = 'error';
     } elseif (empty($taxId) && empty($docNumber)) {
         $message = 'Debés ingresar tu CUIT o DNI para verificar tu identidad.';
         $status  = 'error';
     } else {
-        // Buscar entidad por email + fecha de nacimiento
+        // Buscar entidad por email + año de nacimiento
         $stmt = $db->prepare(
             "SELECT e.*, u.id as user_id
              FROM entities e
              LEFT JOIN users u ON u.entity_id = e.id
              WHERE LOWER(e.email) = ?
-               AND e.birth_date = ?
+               AND e.birth_year = ?
                AND e.type = 'client'
                AND e.is_verified = 1
              LIMIT 1"
         );
-        $stmt->execute([$email, $birthDate]);
+        $stmt->execute([$email, $birthYear]);
         $entity = $stmt->fetch();
 
         if (!$entity) {
-            $message = 'No encontramos una cuenta verificada con esos datos. Revisá el email y la fecha de nacimiento.';
+            $message = 'No encontramos una cuenta verificada con esos datos. Revisá el email y el año de nacimiento.';
             $status  = 'error';
         } else {
             // Verificar CUIT o DNI
@@ -89,14 +89,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // ── Log ───────────────────────────────────────────
                 try {
                     $db->prepare(
-                        "INSERT INTO client_credentials_log (entity_id, email, cuit, document, birth_date, action)
+                        "INSERT INTO client_credentials_log (entity_id, email, cuit, document, birth_year, action)
                          VALUES (?, ?, ?, ?, ?, 'reset')"
                     )->execute([
                         $entity['id'],
                         $entity['email'],
                         $entity['tax_id']          ?? null,
                         $entity['document_number'] ?? null,
-                        $entity['birth_date']      ?? null,
+                        $entity['birth_year']      ?? null,
                     ]);
                 } catch (\Exception $e) { /* log table may not exist yet */ }
 
@@ -383,9 +383,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </p>
 
         <div class="form-group">
-            <label for="birth_date">Fecha de Nacimiento <span class="req">*</span></label>
-            <input type="date" id="birth_date" name="birth_date" required
-                   value="<?= htmlspecialchars($_POST['birth_date'] ?? '') ?>">
+            <label for="birth_year">Año de Nacimiento <span class="req">*</span></label>
+            <input type="number" id="birth_year" name="birth_year" required
+                   min="1900" max="<?= date('Y') - 18 ?>" placeholder="Ej: 1980"
+                   value="<?= htmlspecialchars($_POST['birth_year'] ?? '') ?>">
         </div>
 
         <div class="form-group">

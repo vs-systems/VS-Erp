@@ -64,8 +64,8 @@ class Client
         $data['id']  = !empty($data['id']) ? $data['id'] : null;
         $data['lat'] = (!empty($data['lat']) && is_numeric($data['lat'])) ? (float) $data['lat'] : null;
         $data['lng'] = (!empty($data['lng']) && is_numeric($data['lng'])) ? (float) $data['lng'] : null;
-        // birth_date: convertir a null si vacío
-        if (empty($data['birth_date'])) { $data['birth_date'] = null; }
+        // birth_year: convertir a null si vacío
+        if (empty($data['birth_year'])) { $data['birth_year'] = null; }
 
         $sql = "INSERT INTO entities (
                     id, type, tax_id, document_number, name, fantasy_name, 
@@ -73,7 +73,7 @@ class Client
                     delivery_address, default_voucher_type, tax_category,
                     is_enabled, is_retention_agent, payment_condition, preferred_payment_method,
                     seller_id, client_profile, is_verified, city, lat, lng, transport, is_transport,
-                    tipo_cliente, birth_date
+                    tipo_cliente, birth_year
                 ) 
                 VALUES (
                     :id, :type, :tax_id, :document_number, :name, :fantasy_name, 
@@ -81,7 +81,7 @@ class Client
                     :delivery_address, :default_voucher, :tax_category,
                     :is_enabled, :retention, :payment_condition, :payment_method,
                     :seller_id, :client_profile, :is_verified, :city, :lat, :lng, :transport, :is_transport,
-                    :tipo_cliente, :birth_date
+                    :tipo_cliente, :birth_year
                 )
                 ON DUPLICATE KEY UPDATE 
                 document_number = VALUES(document_number),
@@ -108,7 +108,7 @@ class Client
                 transport = VALUES(transport),
                 is_transport = VALUES(is_transport),
                 tipo_cliente = VALUES(tipo_cliente),
-                birth_date = VALUES(birth_date)";
+                birth_year = VALUES(birth_year)";
         $stmt = $this->db->prepare($sql);
         return $stmt->execute($data);
     }

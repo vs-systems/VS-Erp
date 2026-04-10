@@ -121,14 +121,14 @@ try {
     // ── 6. REGISTRAR EN LOG DE CREDENCIALES ─────────────────────
     try {
         $db->prepare(
-            "INSERT INTO client_credentials_log (entity_id, email, cuit, document, birth_date, action)
+            "INSERT INTO client_credentials_log (entity_id, email, cuit, document, birth_year, action)
              VALUES (?, ?, ?, ?, ?, 'created')"
         )->execute([
             $entityId,
             $entity['email'],
             $entity['tax_id']         ?? null,
             $entity['document_number']?? null,
-            $entity['birth_date']     ?? null,
+            $entity['birth_year']     ?? null,
         ]);
     } catch (\Exception $logEx) {
         // Si la tabla aún no existe, no bloquear el flujo

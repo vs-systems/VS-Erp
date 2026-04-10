@@ -68,7 +68,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'lat'               => null,
             'lng'               => null,
             'transport'         => null,
-            'birth_date'        => !empty($_POST['birth_date']) ? $_POST['birth_date'] : null,
+            'birth_year'        => !empty($_POST['birth_year']) ? (int)$_POST['birth_year'] : null,
         ];
 
         if ($clientModule->saveClient($data)) {
@@ -537,26 +537,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     >
                 </div>
 
-                <!-- FECHA DE NACIMIENTO -->
+                <!-- AÑO DE NACIMIENTO -->
                 <div class="form-group full">
-                    <label for="birth_date">
-                        Fecha de Nacimiento <span class="req">*</span>
+                    <label for="birth_year">
+                        Año de Nacimiento <span class="req">*</span>
                         <span class="tooltip-wrap"
-                              data-tip="Necesaria para recuperar tu clave si la olvidás. Las 3 preguntas que pediremos: email + CUIT/DNI + fecha de nacimiento.">
+                              data-tip="Necesario para recuperar tu clave si la olvidás. Las 3 preguntas que pediremos: email + CUIT/DNI + año de nacimiento.">
                             <span class="material-symbols-outlined">info</span>
                         </span>
                     </label>
                     <input
-                        type="date"
-                        id="birth_date"
-                        name="birth_date"
+                        type="number"
+                        id="birth_year"
+                        name="birth_year"
                         required
-                        max="<?= date('Y-m-d', strtotime('-18 years')) ?>"
-                        value="<?= htmlspecialchars($_POST['birth_date'] ?? '') ?>"
+                        min="1900"
+                        max="<?= date('Y') - 18 ?>"
+                        placeholder="Ej: 1980"
+                        value="<?= htmlspecialchars($_POST['birth_year'] ?? '') ?>"
                     >
                     <p class="field-hint">
                         <span class="material-symbols-outlined">lock</span>
-                        Usada solo para verificar tu identidad si olvidás tu clave.
+                        Usado solo para verificar tu identidad si olvidás tu clave.
                     </p>
                 </div>
 

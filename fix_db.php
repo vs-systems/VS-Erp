@@ -128,11 +128,11 @@ runFix($db,
 );
 
 // ══════════════════════════════════════════════════════════════════
-// TABLA: entities — birth_date: para recuperación de contraseña
+// TABLA: entities — birth_year: para recuperación de contraseña
 // ══════════════════════════════════════════════════════════════════
 runFix($db,
-    "entities.birth_date — Agregar columna de fecha de nacimiento",
-    "ALTER TABLE entities ADD COLUMN IF NOT EXISTS birth_date DATE NULL",
+    "entities.birth_year — Agregar columna de año de nacimiento",
+    "ALTER TABLE entities ADD COLUMN IF NOT EXISTS birth_year SMALLINT NULL",
     $results, $errors
 );
 
@@ -148,7 +148,7 @@ runFix($db,
         email      VARCHAR(100)  NULL,
         cuit       VARCHAR(20)   NULL,
         document   VARCHAR(20)   NULL,
-        birth_date DATE          NULL,
+        birth_year SMALLINT      NULL,
         action     ENUM('created','reset') DEFAULT 'created',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         INDEX idx_entity (entity_id),
