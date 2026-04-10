@@ -10,6 +10,25 @@ $clientModule = new Client();
 $message = '';
 $status = '';
 
+// -- Eliminar cliente --
+$db = Vsys\Lib\Database::getInstance();
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_entity'])) {
+    $delId = (int)($_POST['entity_id'] ?? 0);
+    if ($delId) {
+        try {
+            // Eliminar usuario asociado si existe
+            $db->prepare("DELETE FROM users WHERE entity_id = ?")->execute([$delId]);
+            // Eliminar entidad
+            $db->prepare("DELETE FROM entities WHERE id = ? AND type = 'client'")->execute([$delId]);
+            $message = "Cliente eliminado correctamente.";
+            $status = "success";
+        } catch (\Exception $e) {
+            $message = "Error al eliminar: " . $e->getMessage();
+            $status = "error";
+        }
+    }
+}
+
 // Handle save
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_entity'])) {
     $data = [
@@ -41,9 +60,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_entity'])) {
     }
 }
 
-// Get all clients
-$sql = "SELECT * FROM entities WHERE type = 'client' ORDER BY name ASC";
-$db = Vsys\Lib\Database::getInstance();
+// Get verified clients only (is_verified=1 to avoid showing pending in main list)
+$sql = "SELECT * FROM entities WHERE type = 'client' AND is_verified = 1 ORDER BY name ASC";
 $clients = $db->query($sql)->fetchAll();
 
 // Pendientes de verificación (Bloque 7)
@@ -326,6 +344,15 @@ $pendingClients = $db->query(
                                                         title="Editar Cliente">
                                                         <span class="material-symbols-outlined text-[18px]">edit</span>
                                                     </a>
+                                                    <form method="POST" class="inline" onsubmit="return confirm('¿Eliminar a <?php echo addslashes(htmlspecialchars($c['name'])); ?>?\n\nEsta acción eliminará también el usuario asociado y no se puede deshacer.');">
+                                                        <input type="hidden" name="delete_entity" value="1">
+                                                        <input type="hidden" name="entity_id" value="<?php echo $c['id']; ?>">
+                                                        <button type="submit"
+                                                            class="p-2 rounded-lg hover:bg-red-500/10 text-slate-400 hover:text-red-500 transition-all shadow-sm"
+                                                            title="Eliminar Cliente">
+                                                            <span class="material-symbols-outlined text-[18px]">delete</span>
+                                                        </button>
+                                                    </form>
                                                 </div>
                                             </td>
                                         </tr>

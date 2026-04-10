@@ -103,10 +103,11 @@ try {
     }
 
     // ── 5. ACTUALIZAR ENTIDAD ────────────────────────────────────
+    // Valores aceptados por el ENUM client_profile: 'Gremio','Web','ML','Otro'
     $clientProfile = match($tipoCliente) {
-        'partner' => 'PARTNER',
-        'gremio'  => 'GREMIO',
-        default   => 'PUBLICO',
+        'partner' => 'Otro',   // No existe 'Partner' en ENUM, mapear a 'Otro'
+        'gremio'  => 'Gremio', // Valor exacto del ENUM
+        default   => 'Otro',
     };
 
     $db->prepare(
@@ -181,7 +182,7 @@ try {
         <tr>
           <td style="text-align:center;">
             <p style="font-size:11px;color:#475569;margin:0;">
-              Vecinos Seguros · <a href="{$catUrl}" style="color:#3b82f6;text-decoration:none;">Ver catálogo</a><br>
+              Vecino Seguro · <a href="{$catUrl}" style="color:#3b82f6;text-decoration:none;">Ver catálogo</a><br>
               No respondas este email. Para consultas escribinos por WhatsApp.
             </p>
           </td>

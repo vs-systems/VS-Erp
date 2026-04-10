@@ -1,0 +1,257 @@
+<?php
+/**
+ * fix_db.php — Auto-reparación de Esquema de Base de Datos
+ * Vecino Seguro ERP
+ *
+ * Ejecutar UNA VEZ en el servidor.
+ * Detecta y corrige automáticamente los problemas de esquema
+ * identificados por check_db.php
+ *
+ * ACCESO: Solo admins internos (protegido por auth_check.php)
+ */
+require_once 'auth_check.php';
+require_once __DIR__ . '/src/config/config.php';
+require_once __DIR__ . '/src/lib/Database.php';
+
+use Vsys\Lib\Database;
+
+$db = Database::getInstance();
+$results = [];
+$errors  = [];
+
+// ──────────────────────────────────────────────────────────────────
+// Helper: ejecutar ALTER y registrar resultado
+// ──────────────────────────────────────────────────────────────────
+function runFix(PDO $db, string $label, string $sql, array &$results, array &$errors): void
+{
+    try {
+        $db->exec($sql);
+        $results[] = ['ok', $label];
+    } catch (PDOException $e) {
+        // Error 1060 = columna ya existe → no es un error real
+        if ($e->getCode() == '42S21' || strpos($e->getMessage(), 'Duplicate column') !== false) {
+            $results[] = ['skip', "$label (ya existía, sin cambios)"];
+        } else {
+            $errors[] = [$label, $e->getMessage()];
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// TABLA: users
+// Problema detectado: role ENUM no incluye 'client'
+//                     full_name es NOT NULL sin default
+// ══════════════════════════════════════════════════════════════════
+
+// 1. Ampliar ENUM role para incluir 'client'
+runFix($db,
+    "users.role — Agregar valor 'client' al ENUM",
+    "ALTER TABLE users MODIFY COLUMN role 
+     ENUM('admin','vendedor','logistica','client') 
+     NULL DEFAULT 'vendedor'",
+    $results, $errors
+);
+
+// 2. full_name: quitar NOT NULL para evitar error 1364 cuando no se provee
+runFix($db,
+    "users.full_name — Permitir NULL y poner default vacío",
+    "ALTER TABLE users MODIFY COLUMN full_name VARCHAR(100) NULL DEFAULT ''",
+    $results, $errors
+);
+
+// 3. email: permitir NULL (clients creados sin email interno del ERP)
+runFix($db,
+    "users.email — Permitir NULL",
+    "ALTER TABLE users MODIFY COLUMN email VARCHAR(100) NULL DEFAULT NULL",
+    $results, $errors
+);
+
+// ══════════════════════════════════════════════════════════════════
+// TABLA: entities
+// Problema: client_profile ENUM usa minúsculas pero el código inserta
+//           mayúsculas ('GREMIO','PUBLICO','PARTNER')
+// Solución: expandir ENUM para aceptar ambas formas
+// ══════════════════════════════════════════════════════════════════
+
+runFix($db,
+    "entities.client_profile — Expandir ENUM para aceptar mayúsculas (GREMIO, PUBLICO, PARTNER, WEB)",
+    "ALTER TABLE entities MODIFY COLUMN client_profile 
+     ENUM('Gremio','Web','ML','Otro','GREMIO','PUBLICO','PARTNER','WEB') 
+     NULL DEFAULT 'Otro'",
+    $results, $errors
+);
+
+// Normalizar registros existentes con mayúsculas a minúsculas consistentes
+runFix($db,
+    "entities.client_profile — Normalizar valores existentes a minúsculas",
+    "UPDATE entities SET client_profile = CASE 
+        WHEN client_profile = 'GREMIO'  THEN 'Gremio'
+        WHEN client_profile = 'WEB'     THEN 'Web'
+        WHEN client_profile = 'PUBLICO' THEN 'Otro'
+        WHEN client_profile = 'PARTNER' THEN 'Otro'
+        ELSE client_profile
+     END
+     WHERE client_profile IN ('GREMIO','WEB','PUBLICO','PARTNER')",
+    $results, $errors
+);
+
+// Ahora dejar ENUM limpio sin las versiones mayúsculas
+runFix($db,
+    "entities.client_profile — Limpiar ENUM a solo versión canónica",
+    "ALTER TABLE entities MODIFY COLUMN client_profile 
+     ENUM('Gremio','Web','ML','Otro') 
+     NULL DEFAULT 'Otro'",
+    $results, $errors
+);
+
+// ══════════════════════════════════════════════════════════════════
+// TABLA: entities — is_verified: columna puede faltar en instalaciones viejas
+// ══════════════════════════════════════════════════════════════════
+runFix($db,
+    "entities.is_verified — Asegurar que existe (ADD COLUMN IF NOT EXISTS emulado)",
+    "ALTER TABLE entities ADD COLUMN IF NOT EXISTS is_verified TINYINT(1) NULL DEFAULT 0",
+    $results, $errors
+);
+
+// ══════════════════════════════════════════════════════════════════
+// TABLA: entities — tipo_cliente: columna puede faltar
+// ══════════════════════════════════════════════════════════════════
+runFix($db,
+    "entities.tipo_cliente — Asegurar que existe",
+    "ALTER TABLE entities ADD COLUMN IF NOT EXISTS tipo_cliente 
+     ENUM('partner','gremio','publico') NOT NULL DEFAULT 'publico'",
+    $results, $errors
+);
+
+// ══════════════════════════════════════════════════════════════════
+// TABLA: quotations — columnas de logística que pueden faltar
+// ══════════════════════════════════════════════════════════════════
+runFix($db,
+    "quotations.authorized_dispatch — Asegurar columna",
+    "ALTER TABLE quotations ADD COLUMN IF NOT EXISTS authorized_dispatch TINYINT(1) NULL DEFAULT 0",
+    $results, $errors
+);
+
+runFix($db,
+    "quotations.logistics_authorized_by — Asegurar columna",
+    "ALTER TABLE quotations ADD COLUMN IF NOT EXISTS logistics_authorized_by VARCHAR(100) NULL",
+    $results, $errors
+);
+
+runFix($db,
+    "quotations.logistics_authorized_at — Asegurar columna",
+    "ALTER TABLE quotations ADD COLUMN IF NOT EXISTS logistics_authorized_at DATETIME NULL",
+    $results, $errors
+);
+
+runFix($db,
+    "quotations.archived_at — Asegurar columna",
+    "ALTER TABLE quotations ADD COLUMN IF NOT EXISTS archived_at DATETIME NULL",
+    $results, $errors
+);
+
+runFix($db,
+    "quotations.archive_reason — Asegurar columna",
+    "ALTER TABLE quotations ADD COLUMN IF NOT EXISTS archive_reason 
+     ENUM('Vendido','Suspendido','Rechazado') NULL",
+    $results, $errors
+);
+
+// ══════════════════════════════════════════════════════════════════
+// TABLA: products — columnas de stock y listas de precios
+// ══════════════════════════════════════════════════════════════════
+runFix($db,
+    "products.stock_current — Asegurar columna",
+    "ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_current INT(11) NULL DEFAULT 0",
+    $results, $errors
+);
+
+runFix($db,
+    "products.price_partner — Asegurar columna",
+    "ALTER TABLE products ADD COLUMN IF NOT EXISTS price_partner DECIMAL(15,2) NULL",
+    $results, $errors
+);
+
+runFix($db,
+    "products.price_gremio — Asegurar columna",
+    "ALTER TABLE products ADD COLUMN IF NOT EXISTS price_gremio DECIMAL(15,2) NULL",
+    $results, $errors
+);
+
+runFix($db,
+    "products.price_pvp — Asegurar columna (precio publico)",
+    "ALTER TABLE products ADD COLUMN IF NOT EXISTS price_pvp DECIMAL(15,2) NULL",
+    $results, $errors
+);
+
+// ──────────────────────────────────────────────────────────────────
+// OUTPUT HTML
+// ──────────────────────────────────────────────────────────────────
+?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Fix DB — Vecino Seguro</title>
+<style>
+  body { font-family: 'Courier New', monospace; background: #0d1117; color: #c9d1d9; padding: 32px; }
+  h1   { color: #58a6ff; font-size: 22px; margin-bottom: 24px; }
+  h2   { color: #8b949e; font-size: 14px; margin: 24px 0 8px; border-top: 1px solid #21262d; padding-top: 16px; }
+  .ok   { background: #0d2119; border-left: 3px solid #3fb950; margin: 6px 0; padding: 8px 12px; border-radius: 4px; color: #3fb950; font-size: 13px; }
+  .skip { background: #1a1d22; border-left: 3px solid #6e7681; margin: 6px 0; padding: 8px 12px; border-radius: 4px; color: #6e7681; font-size: 13px; }
+  .err  { background: #2d1117; border-left: 3px solid #f85149; margin: 6px 0; padding: 8px 12px; border-radius: 4px; color: #f85149; font-size: 13px; }
+  .icon { margin-right: 8px; }
+  .summary { margin-top: 32px; padding: 16px; border-radius: 8px; font-size: 14px; }
+  .summary.success { background: #0d2119; border: 1px solid #3fb950; color: #3fb950; }
+  .summary.hasErrors { background: #2d1117; border: 1px solid #f85149; color: #f85149; }
+  a.back { display: inline-block; margin-top: 24px; color: #58a6ff; text-decoration: none; font-size: 13px; }
+  a.back:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<h1>🔧 Auto-reparación de Esquema — Vecino Seguro ERP</h1>
+
+<h2>Resultados</h2>
+<?php foreach ($results as [$type, $msg]): ?>
+    <div class="<?php echo $type; ?>">
+        <?php if ($type === 'ok'): ?>
+            <span class="icon">✓</span><?php echo htmlspecialchars($msg); ?>
+        <?php else: ?>
+            <span class="icon">–</span><?php echo htmlspecialchars($msg); ?>
+        <?php endif; ?>
+    </div>
+<?php endforeach; ?>
+
+<?php if (!empty($errors)): ?>
+    <h2>Errores</h2>
+    <?php foreach ($errors as [$label, $errMsg]): ?>
+        <div class="err">
+            <span class="icon">✗</span>
+            <strong><?php echo htmlspecialchars($label); ?></strong><br>
+            <span style="font-size:11px;opacity:.8;"><?php echo htmlspecialchars($errMsg); ?></span>
+        </div>
+    <?php endforeach; ?>
+<?php endif; ?>
+
+<div class="summary <?php echo empty($errors) ? 'success' : 'hasErrors'; ?>">
+    <?php if (empty($errors)): ?>
+        ✅ Reparación completada sin errores críticos.<br>
+        <small>
+            <?php echo count($results); ?> operaciones realizadas.
+            <?php 
+            $okCount = count(array_filter($results, fn($r) => $r[0] === 'ok'));
+            echo "$okCount cambios aplicados.";
+            ?>
+        </small>
+    <?php else: ?>
+        ⚠️ Completado con <?php echo count($errors); ?> error(es). Revisá los detalles arriba.
+    <?php endif; ?>
+</div>
+
+<a class="back" href="configuration.php">← Volver al Centro de Configuración</a>
+<br>
+<a class="back" href="check_db.php">→ Verificar esquema post-reparación</a>
+
+</body>
+</html>
