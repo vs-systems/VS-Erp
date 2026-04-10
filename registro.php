@@ -54,20 +54,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'address'           => $_POST['address'] ?? '',
             'delivery_address'  => '',
             'default_voucher'   => 'Factura',
-            'tax_category'      => $_POST['tax_category'] ?? 'No Aplica', // Ya no tira error porque esta en el ENUM DB
+            'tax_category'      => $_POST['tax_category'] ?? 'No Aplica',
             'is_enabled'        => 1,
             'retention'         => 0,
             'payment_condition' => 'Contado',
             'payment_method'    => 'Transferencia',
             'seller_id'         => null,
-            'client_profile'    => 'Gremio',   // perfil heredado (legacy)
-            'is_verified'       => 0,           // pendiente de aprobación manual
+            'client_profile'    => 'Gremio',
+            'is_verified'       => 0,
             'is_transport'      => 0,
-            'tipo_cliente'      => 'gremio',    // lista de precios activa
+            'tipo_cliente'      => 'gremio',
             'city'              => '',
             'lat'               => null,
             'lng'               => null,
             'transport'         => null,
+            'birth_date'        => !empty($_POST['birth_date']) ? $_POST['birth_date'] : null,
         ];
 
         if ($clientModule->saveClient($data)) {
@@ -85,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
             } catch (Exception $e) { /* silencioso */ }
 
-            $message = 'Solicitud enviada con éxito. Un asesor verificará tus datos y recibirás un correo a <strong>' . htmlspecialchars($email) . '</strong> con tu clave de acceso.';
+            $message = 'Solicitud enviada con éxito. Un asesor verificará tus datos y te contactará mediante WhatsApp para darte acceso al sistema.';
             $status  = 'success';
 
             // Notificación interna
@@ -405,11 +406,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="card-header">
             <div class="logo-badge">
                 <span class="material-symbols-outlined" style="font-size:13px;">shield</span>
-                VECINOS SEGUROS
+                VECINO SEGURO
             </div>
             <h1>Registro como Gremio</h1>
             <p>Completá el formulario y un asesor validará tu cuenta.<br>
-               Recibirás el acceso a precios exclusivos en tu email.</p>
+               Te contactaremos por WhatsApp para darte acceso al catálogo de precios.</p>
         </div>
 
         <?php if ($message): ?>
@@ -534,6 +535,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         inputmode="numeric"
                         value="<?= htmlspecialchars($_POST['document_number'] ?? '') ?>"
                     >
+                </div>
+
+                <!-- FECHA DE NACIMIENTO -->
+                <div class="form-group full">
+                    <label for="birth_date">
+                        Fecha de Nacimiento <span class="req">*</span>
+                        <span class="tooltip-wrap"
+                              data-tip="Necesaria para recuperar tu clave si la olvidás. Las 3 preguntas que pediremos: email + CUIT/DNI + fecha de nacimiento.">
+                            <span class="material-symbols-outlined">info</span>
+                        </span>
+                    </label>
+                    <input
+                        type="date"
+                        id="birth_date"
+                        name="birth_date"
+                        required
+                        max="<?= date('Y-m-d', strtotime('-18 years')) ?>"
+                        value="<?= htmlspecialchars($_POST['birth_date'] ?? '') ?>"
+                    >
+                    <p class="field-hint">
+                        <span class="material-symbols-outlined">lock</span>
+                        Usada solo para verificar tu identidad si olvidás tu clave.
+                    </p>
                 </div>
 
             </div>

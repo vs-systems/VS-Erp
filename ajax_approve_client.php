@@ -79,13 +79,13 @@ try {
     }
 
     // ── 3. GENERAR CONTRASEÑA TEMPORAL ──────────────────────────
-    // 10 chars: letras + números, sin caracteres confusos (0,O,l,1)
-    $chars    = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
-    $passLen  = 10;
-    $tempPass = '';
-    for ($i = 0; $i < $passLen; $i++) {
-        $tempPass .= $chars[random_int(0, strlen($chars) - 1)];
+    // Formato: VS{AÑO}{6 chars aleatorios sin caracteres confusos}
+    $chars    = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // Sin 0,O,I,1,L
+    $suffix   = '';
+    for ($i = 0; $i < 6; $i++) {
+        $suffix .= $chars[random_int(0, strlen($chars) - 1)];
     }
+    $tempPass = 'VS' . date('Y') . $suffix; // Ej: VS2026AB3X7K
 
     // ── 4. CREAR USUARIO ─────────────────────────────────────────
     $userModule = new User();
@@ -117,6 +117,22 @@ try {
              client_profile = ?
          WHERE id = ?"
     )->execute([$tipoCliente, $clientProfile, $entityId]);
+
+    // ── 6. REGISTRAR EN LOG DE CREDENCIALES ─────────────────────
+    try {
+        $db->prepare(
+            "INSERT INTO client_credentials_log (entity_id, email, cuit, document, birth_date, action)
+             VALUES (?, ?, ?, ?, ?, 'created')"
+        )->execute([
+            $entityId,
+            $entity['email'],
+            $entity['tax_id']         ?? null,
+            $entity['document_number']?? null,
+            $entity['birth_date']     ?? null,
+        ]);
+    } catch (\Exception $logEx) {
+        // Si la tabla aún no existe, no bloquear el flujo
+    }
 
     // ── 6. ENVIAR EMAIL CON CREDENCIALES ─────────────────────────
     $tipoLabel = ['partner' => 'Partner', 'gremio' => 'Gremio', 'publico' => 'Público'][$tipoCliente];
@@ -225,10 +241,12 @@ HTML;
     echo json_encode([
         'success'    => true,
         'message'    => $mailSent
-            ? "Cliente aprobado y credenciales enviadas a <strong>$email</strong>."
-            : "Cliente aprobado. <strong>El email no pudo enviarse</strong> ($mailError). Contraseña temporal: <code>$tempPass</code>",
+            ? "Cliente aprobado y credenciales enviadas a <strong>$email</strong>. También podés compartir la clave directamente."
+            : "Cliente aprobado. El email no pudo enviarse — <strong>compartí la clave al cliente por WhatsApp</strong>.",
         'mail_sent'  => $mailSent,
-        'temp_pass'  => $mailSent ? null : $tempPass,   // Solo exponer si el mail falló
+        'temp_pass'  => $tempPass,   // Siempre visible para el admin
+        'client_name'=> $name,
+        'client_email'=> $email,
         'tipo'       => $tipoCliente,
     ]);
 

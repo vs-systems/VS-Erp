@@ -128,6 +128,36 @@ runFix($db,
 );
 
 // ══════════════════════════════════════════════════════════════════
+// TABLA: entities — birth_date: para recuperación de contraseña
+// ══════════════════════════════════════════════════════════════════
+runFix($db,
+    "entities.birth_date — Agregar columna de fecha de nacimiento",
+    "ALTER TABLE entities ADD COLUMN IF NOT EXISTS birth_date DATE NULL",
+    $results, $errors
+);
+
+// ══════════════════════════════════════════════════════════════════
+// TABLA NUEVA: client_credentials_log
+// Registra cuándo se creó o reseteó la contraseña de un cliente
+// ══════════════════════════════════════════════════════════════════
+runFix($db,
+    "client_credentials_log — Crear tabla de log de credenciales",
+    "CREATE TABLE IF NOT EXISTS client_credentials_log (
+        id         INT AUTO_INCREMENT PRIMARY KEY,
+        entity_id  INT NOT NULL,
+        email      VARCHAR(100)  NULL,
+        cuit       VARCHAR(20)   NULL,
+        document   VARCHAR(20)   NULL,
+        birth_date DATE          NULL,
+        action     ENUM('created','reset') DEFAULT 'created',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_entity (entity_id),
+        INDEX idx_email  (email)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4",
+    $results, $errors
+);
+
+// ══════════════════════════════════════════════════════════════════
 // TABLA: quotations — columnas de logística que pueden faltar
 // ══════════════════════════════════════════════════════════════════
 runFix($db,

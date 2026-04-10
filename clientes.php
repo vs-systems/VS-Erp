@@ -367,15 +367,78 @@ $pendingClients = $db->query(
     </div>
 </body>
 
+<!-- ════════════════════════════════════════════════════════════
+     MODAL: Credenciales generadas al aprobar cliente
+     ════════════════════════════════════════════════════════════ -->
+<div id="credModal" class="fixed inset-0 z-[200] hidden items-center justify-center p-4"
+     style="background:rgba(0,0,0,.75);backdrop-filter:blur(6px);">
+    <div class="bg-[#16202e] border border-[#233348] rounded-2xl w-full max-w-md shadow-2xl p-8 relative">
+        <!-- Close -->
+        <button onclick="closeCredModal()"
+            class="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors">
+            <span class="material-symbols-outlined">close</span>
+        </button>
+
+        <!-- Header -->
+        <div class="flex items-center gap-3 mb-6">
+            <div class="h-10 w-10 rounded-xl bg-green-500/10 flex items-center justify-center">
+                <span class="material-symbols-outlined text-green-400">verified</span>
+            </div>
+            <div>
+                <h3 class="font-bold text-white text-base">Cliente Aprobado</h3>
+                <p id="cred-subtitle" class="text-xs text-slate-400"></p>
+            </div>
+        </div>
+
+        <!-- Credenciales -->
+        <div class="bg-[#0d1117] border border-[#233348] rounded-xl p-5 mb-5 space-y-4">
+            <div>
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Usuario (Email)</p>
+                <p id="cred-email" class="text-sm font-mono font-bold text-white"></p>
+            </div>
+            <div class="border-t border-[#233348] pt-4">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Contraseña Temporal</p>
+                <div class="flex items-center gap-3">
+                    <p id="cred-pass" class="text-2xl font-mono font-extrabold text-[#3b82f6] tracking-widest"></p>
+                    <button onclick="copyPass()" id="btn-copy"
+                        class="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-[#136dec]/10 hover:bg-[#136dec]/20 border border-[#136dec]/30 text-[#136dec] rounded-lg text-xs font-bold transition-all">
+                        <span class="material-symbols-outlined text-sm">content_copy</span>
+                        Copiar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Aviso -->
+        <div class="flex items-start gap-2 p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl mb-5">
+            <span class="material-symbols-outlined text-amber-400 text-base mt-0.5 flex-shrink-0">info</span>
+            <p class="text-xs text-amber-300/80 leading-relaxed">
+                Compartí estas credenciales al cliente por <strong>WhatsApp</strong>.
+                La contraseña puede cambiarse desde el perfil del portal.
+            </p>
+        </div>
+
+        <!-- WhatsApp link -->
+        <a id="btn-whatsapp" href="#" target="_blank"
+            class="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 font-bold text-sm transition-all">
+            <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                <path d="M12 0C5.373 0 0 5.373 0 12c0 2.113.551 4.096 1.512 5.813L.052 23.5l5.818-1.43A11.953 11.953 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.8 9.8 0 01-4.993-1.368l-.358-.213-3.448.847.876-3.339-.233-.373A9.79 9.79 0 012.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/>
+            </svg>
+            Enviar por WhatsApp
+        </a>
+    </div>
+</div>
+
 <script>
 /**
- * Aprueba un cliente pendiente via AJAX (Bloque 7)
+ * Aprueba un cliente pendiente via AJAX
  */
 async function aprobarCliente(entityId, nombre, email) {
     const tipoSelect = document.getElementById('tipo-select-' + entityId);
     const tipo       = tipoSelect ? tipoSelect.value : 'gremio';
 
-    if (!confirm(`¿Aprobar a ${ nombre } [${ email }] como ${ tipo.toUpperCase() }?\n\nSe creará un usuario y se enviarán las credenciales por email.`)) return;
+    if (!confirm(`¿Aprobar a ${ nombre } [${ email }] como ${ tipo.toUpperCase() }?\n\nSe creará su usuario de acceso al portal.`)) return;
 
     // UI: mostrar spinner
     const row     = document.getElementById('pending-row-' + entityId);
@@ -400,11 +463,17 @@ async function aprobarCliente(entityId, nombre, email) {
                 row.style.overflow  = 'hidden';
                 setTimeout(() => row.remove(), 420);
             }
-            showToast(data.message, 'success');
 
-            // Si no quedan pendientes, ocultar el panel completo
+            // Mostrar modal con contraseña generada
+            if (data.temp_pass) {
+                showCredModal(data.client_name || nombre, data.client_email || email, data.temp_pass);
+            } else {
+                showToast(data.message, 'success');
+            }
+
+            // Si no quedan pendientes, ocultar panel
             setTimeout(() => {
-                const panel = document.querySelector('.bg-amber-500\/5');
+                const panel = document.querySelector('.bg-amber-500\\/5');
                 if (panel && panel.querySelectorAll('[id^="pending-row-"]').length === 0) {
                     panel.remove();
                 }
@@ -419,6 +488,48 @@ async function aprobarCliente(entityId, nombre, email) {
         if (loading) loading.classList.replace('flex', 'hidden');
         showToast('Error de red: ' + err.message, 'error');
     }
+}
+
+/**
+ * Mostrar modal con credenciales generadas
+ */
+function showCredModal(nombre, email, password) {
+    document.getElementById('cred-subtitle').textContent = nombre;
+    document.getElementById('cred-email').textContent    = email;
+    document.getElementById('cred-pass').textContent     = password;
+
+    // WhatsApp link
+    const msg = encodeURIComponent(
+        `¡Hola ${nombre}! Tu cuenta en Vecino Seguro fue aprobada.\n\n` +
+        `Usuario: ${email}\nContraseña: ${password}\n\n` +
+        `Ingresá en: https://dev.vecinoseguro.com.ar/login.php`
+    );
+    document.getElementById('btn-whatsapp').href = `https://wa.me/?text=${msg}`;
+
+    const modal = document.getElementById('credModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeCredModal() {
+    const modal = document.getElementById('credModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    // Recargar para actualizar lista
+    location.reload();
+}
+
+function copyPass() {
+    const pass = document.getElementById('cred-pass').textContent;
+    navigator.clipboard.writeText(pass).then(() => {
+        const btn = document.getElementById('btn-copy');
+        btn.innerHTML = '<span class="material-symbols-outlined text-sm">check</span> Copiado';
+        btn.style.color = '#4ade80';
+        setTimeout(() => {
+            btn.innerHTML = '<span class="material-symbols-outlined text-sm">content_copy</span> Copiar';
+            btn.style.color = '';
+        }, 2000);
+    });
 }
 
 /**
@@ -442,4 +553,4 @@ function showToast(msg, type = 'success') {
 }
 </script>
 
-</html>
+</html>

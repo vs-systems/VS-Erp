@@ -64,20 +64,24 @@ class Client
         $data['id']  = !empty($data['id']) ? $data['id'] : null;
         $data['lat'] = (!empty($data['lat']) && is_numeric($data['lat'])) ? (float) $data['lat'] : null;
         $data['lng'] = (!empty($data['lng']) && is_numeric($data['lng'])) ? (float) $data['lng'] : null;
+        // birth_date: convertir a null si vacío
+        if (empty($data['birth_date'])) { $data['birth_date'] = null; }
 
         $sql = "INSERT INTO entities (
                     id, type, tax_id, document_number, name, fantasy_name, 
                     contact_person, email, phone, mobile, address, 
                     delivery_address, default_voucher_type, tax_category,
                     is_enabled, is_retention_agent, payment_condition, preferred_payment_method,
-                    seller_id, client_profile, is_verified, city, lat, lng, transport, is_transport, tipo_cliente
+                    seller_id, client_profile, is_verified, city, lat, lng, transport, is_transport,
+                    tipo_cliente, birth_date
                 ) 
                 VALUES (
                     :id, :type, :tax_id, :document_number, :name, :fantasy_name, 
                     :contact, :email, :phone, :mobile, :address, 
                     :delivery_address, :default_voucher, :tax_category,
                     :is_enabled, :retention, :payment_condition, :payment_method,
-                    :seller_id, :client_profile, :is_verified, :city, :lat, :lng, :transport, :is_transport, :tipo_cliente
+                    :seller_id, :client_profile, :is_verified, :city, :lat, :lng, :transport, :is_transport,
+                    :tipo_cliente, :birth_date
                 )
                 ON DUPLICATE KEY UPDATE 
                 document_number = VALUES(document_number),
@@ -103,7 +107,8 @@ class Client
                 lng = VALUES(lng),
                 transport = VALUES(transport),
                 is_transport = VALUES(is_transport),
-                tipo_cliente = VALUES(tipo_cliente)";
+                tipo_cliente = VALUES(tipo_cliente),
+                birth_date = VALUES(birth_date)";
         $stmt = $this->db->prepare($sql);
         return $stmt->execute($data);
     }
