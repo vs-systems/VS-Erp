@@ -1,85 +1,64 @@
 <?php
 /**
- * VS System ERP - Basic SMTP Mailer
- * Lightweight implementation for Port 465 (SSL) without external dependencies.
+ * VS System ERP - Resend API Mailer
+ * Reemplaza la vieja conexión por sockets SMTP con la API oficial de Resend (mucho más rápida y estable).
  */
 
 namespace Vsys\Lib;
 
 class Mailer
 {
-    private $host;
-    private $port;
-    private $user;
-    private $pass;
+    private $apiKey;
     private $from;
 
     public function __construct()
     {
-        // Credentials from config
-        $host = defined('SMTP_HOST') ? SMTP_HOST : 'smtp.gmail.com';
-        $port = defined('SMTP_PORT') ? SMTP_PORT : 587;
-        $secure = defined('SMTP_SECURE') ? SMTP_SECURE : 'tls';
-
-        $this->host = ($secure === 'ssl' ? 'ssl://' : 'tls://') . $host;
-        $this->port = $port;
-        $this->user = defined('SMTP_USER') ? SMTP_USER : 'user@example.com';
-        $this->pass = defined('SMTP_PASS') ? SMTP_PASS : 'password';
-        $this->from = $this->user;
+        $this->apiKey = defined('RESEND_API_KEY') ? RESEND_API_KEY : '';
+        $this->from   = defined('MAIL_FROM') ? MAIL_FROM : 'no-reply@vecinoseguro.com.ar';
     }
 
     public function send($to, $subject, $body, $isHtml = true)
     {
-        $timeout = 30;
-        $socket = fsockopen($this->host, $this->port, $errno, $errstr, $timeout);
-
-        if (!$socket) {
-            throw new \Exception("Could not connect to SMTP server: $errstr ($errno)");
+        if (empty($this->apiKey)) {
+            throw new \Exception("RESEND_API_KEY no está configurada en config.php.");
         }
 
-        $getResponse = function ($s) {
-            $response = "";
-            while ($line = fgets($s, 515)) {
-                $response .= $line;
-                if (substr($line, 3, 1) == " ")
-                    break;
-            }
-            return $response;
-        };
+        $url = 'https://api.resend.com/emails';
+        
+        $data = [
+            'from'    => "Vecino Seguro <{$this->from}>",
+            'to'      => [$to],
+            'subject' => $subject,
+        ];
 
-        $sendCommand = function ($s, $cmd) use ($getResponse) {
-            fputs($s, $cmd . "\r\n");
-            return $getResponse($s);
-        };
+        if ($isHtml) {
+            $data['html'] = $body;
+        } else {
+            $data['text'] = $body;
+        }
 
-        try {
-            $getResponse($socket); // Catch greeting
-            $sendCommand($socket, "EHLO " . $_SERVER['SERVER_NAME']);
-            $sendCommand($socket, "AUTH LOGIN");
-            $sendCommand($socket, base64_encode($this->user));
-            $sendCommand($socket, base64_encode($this->pass));
-            $sendCommand($socket, "MAIL FROM: <{$this->from}>");
-            $sendCommand($socket, "RCPT TO: <{$to}>");
-            $sendCommand($socket, "DATA");
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Authorization: Bearer ' . $this->apiKey,
+            'Content-Type: application/json'
+        ]);
 
-            $headers = "To: {$to}\r\n";
-            $headers .= "From: VS System <{$this->from}>\r\n";
-            $headers .= "Subject: {$subject}\r\n";
-            $headers .= "MIME-Version: 1.0\r\n";
-            $headers .= "Content-Type: " . ($isHtml ? "text/html" : "text/plain") . "; charset=UTF-8\r\n";
-            $headers .= "Date: " . date('r') . "\r\n";
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error    = curl_error($ch);
+        curl_close($ch);
 
-            fputs($socket, $headers . "\r\n" . $body . "\r\n.\r\n");
-            $getResponse($socket);
-
-            $sendCommand($socket, "QUIT");
-            fclose($socket);
+        if ($httpCode >= 200 && $httpCode < 300) {
             return true;
-        } catch (\Exception $e) {
-            fclose($socket);
-            throw $e;
         }
+
+        // Extraer mensaje de error de Resend si existe
+        $resendError = json_decode($response, true);
+        $errorMsg = isset($resendError['message']) ? $resendError['message'] : $response;
+
+        throw new \Exception("Error Resend: HTTP $httpCode " . ($error ?: $errorMsg));
     }
 }
-
-

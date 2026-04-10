@@ -41,14 +41,9 @@ define('COMPANY_ADDRESS',   $_companyConfig['address']       ?? '');
 define('COMPANY_WEBSITE',   $_companyConfig['website']       ?? 'https://vecinoseguro.com.ar');
 define('COMPANY_TAGLINE',   $_companyConfig['tagline']       ?? 'Lo que no encontrás en nuestro catálogo, lo buscamos por vos.');
 
-// ── 5. SMTP (Gmail App Password) ─────────────────────────────────
-// IMPORTANTE: usar contraseña de aplicación de Gmail, no la contraseña normal.
-// Generarla en: https://myaccount.google.com/apppasswords
-define('SMTP_HOST',   'smtp.gmail.com');
-define('SMTP_PORT',   465);
-define('SMTP_SECURE', 'ssl');
-define('SMTP_USER',   COMPANY_EMAIL);
-define('SMTP_PASS',   'adfq ylto qzls xcvb');   // App Password — cambiar si se revoca
+// ── 5. EMAIL (Resend API) ──────────────────────────────────────────
+define('RESEND_API_KEY', 're_dHc9Ec6b_31R83VTojF9oQJvrh1tBswrc'); // Tu clave de Resend
+define('MAIL_FROM',      'no-reply@vecinoseguro.com.ar');         // Remitente autorizado
 
 // ── 6. TOKENS Y SEGURIDAD ────────────────────────────────────────
 define('BCRA_TOKEN', 'eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3OTg3MjIwMTksInR5cGUiOiJleHRlcm5hbCIsInVzZXIiOiJqYXZpZXJAdmVjaW5vc2VndXJvLmNvbS5hciJ9.5gGamU2tbfkH1EJusB7a39P4sod-7XAJvcPljaIlDgEapFfGdk95fyhRARGcvy1xSux3jRXFStQnS1kKTxQEBQ');
