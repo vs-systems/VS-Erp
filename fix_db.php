@@ -67,39 +67,43 @@ runFix($db,
 );
 
 // ══════════════════════════════════════════════════════════════════
-// TABLA: entities
-// Problema: client_profile ENUM usa minúsculas pero el código inserta
-//           mayúsculas ('GREMIO','PUBLICO','PARTNER')
-// Solución: expandir ENUM para aceptar ambas formas
+// TABLA: entities — client_profile
+// Problema: registros con valores en mayúsculas (GREMIO, PUBLICO, PARTNER)
+// que no son válidos en el ENUM original ('Gremio','Web','ML','Otro')
+//
+// Estrategia correcta:
+//  1. Convertir temporalmente a VARCHAR (acepta cualquier valor)
+//  2. Normalizar los registros con UPDATE
+//  3. Restaurar ENUM con los valores canónicos
 // ══════════════════════════════════════════════════════════════════
 
+// Paso 1: Convertir a VARCHAR para poder normalizar datos sin restricción
 runFix($db,
-    "entities.client_profile — Expandir ENUM para aceptar mayúsculas (GREMIO, PUBLICO, PARTNER, WEB)",
-    "ALTER TABLE entities MODIFY COLUMN client_profile 
-     ENUM('Gremio','Web','ML','Otro','GREMIO','PUBLICO','PARTNER','WEB') 
-     NULL DEFAULT 'Otro'",
+    "entities.client_profile — Paso 1/3: Convertir a VARCHAR para normalización",
+    "ALTER TABLE entities MODIFY COLUMN client_profile VARCHAR(50) NULL DEFAULT 'Otro'",
     $results, $errors
 );
 
-// Normalizar registros existentes con mayúsculas a minúsculas consistentes
+// Paso 2: Normalizar valores con mayúsculas incorrectas
 runFix($db,
-    "entities.client_profile — Normalizar valores existentes a minúsculas",
-    "UPDATE entities SET client_profile = CASE 
-        WHEN client_profile = 'GREMIO'  THEN 'Gremio'
-        WHEN client_profile = 'WEB'     THEN 'Web'
-        WHEN client_profile = 'PUBLICO' THEN 'Otro'
-        WHEN client_profile = 'PARTNER' THEN 'Otro'
-        ELSE client_profile
+    "entities.client_profile — Paso 2/3: Normalizar valores (GREMIO→Gremio, PUBLICO/PARTNER→Otro, WEB→Web)",
+    "UPDATE entities SET client_profile = CASE
+        WHEN UPPER(client_profile) = 'GREMIO'  THEN 'Gremio'
+        WHEN UPPER(client_profile) = 'WEB'     THEN 'Web'
+        WHEN UPPER(client_profile) = 'ML'      THEN 'ML'
+        WHEN UPPER(client_profile) = 'PUBLICO' THEN 'Otro'
+        WHEN UPPER(client_profile) = 'PARTNER' THEN 'Otro'
+        ELSE 'Otro'
      END
-     WHERE client_profile IN ('GREMIO','WEB','PUBLICO','PARTNER')",
+     WHERE client_profile NOT IN ('Gremio','Web','ML','Otro') OR client_profile IS NULL",
     $results, $errors
 );
 
-// Ahora dejar ENUM limpio sin las versiones mayúsculas
+// Paso 3: Restaurar ENUM con los valores canónicos correctos
 runFix($db,
-    "entities.client_profile — Limpiar ENUM a solo versión canónica",
-    "ALTER TABLE entities MODIFY COLUMN client_profile 
-     ENUM('Gremio','Web','ML','Otro') 
+    "entities.client_profile — Paso 3/3: Restaurar ENUM canónico",
+    "ALTER TABLE entities MODIFY COLUMN client_profile
+     ENUM('Gremio','Web','ML','Otro')
      NULL DEFAULT 'Otro'",
     $results, $errors
 );
